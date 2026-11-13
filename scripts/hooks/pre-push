@@ -1,0 +1,26 @@
+#!/bin/sh
+# 禁止直接推送 main。所有改动必须走分支 + PR。
+# 由 scripts/install-hooks.sh 安装到 .git/hooks/pre-push
+
+protected="main"
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    case "$remote_ref" in
+        "refs/heads/$protected")
+            printf '\n'
+            printf '\033[31m拒绝推送：不能直接推送到 %s\033[0m\n' "$protected"
+            printf '\n'
+            printf '  正确做法：\n'
+            printf '    git checkout -b feat/你的功能名\n'
+            printf '    git push -u origin feat/你的功能名\n'
+            printf '  然后在 GitHub 上发起 Pull Request。\n'
+            printf '\n'
+            printf '  确实需要绕过（仅限紧急修复，事后必须在群里说明）：\n'
+            printf '    git push --no-verify\n'
+            printf '\n'
+            exit 1
+            ;;
+    esac
+done
+
+exit 0
