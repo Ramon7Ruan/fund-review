@@ -3,7 +3,8 @@
 VENV := .venv
 # 允许用 make check PY=/path/to/python 指定解释器（CI 与特殊环境用）
 PY ?= $(VENV)/bin/python
-UV := uv
+# uv 可选：装了更快，没装自动回退到 python3 -m venv + pip
+UV := $(shell command -v uv 2>/dev/null)
 
 help:
 	@echo "make setup    安装后端与前端依赖"
@@ -14,11 +15,19 @@ help:
 	@echo "make probe    用真实网络验证数据源（不进 CI）"
 
 setup: $(VENV) web/node_modules
+ifdef UV
 	$(UV) pip install --python $(PY) -r requirements.txt -r requirements-dev.txt
-	@echo "提示：真实抓数需要 akshare，执行 uv pip install --python $(PY) akshare"
+else
+	$(PY) -m pip install -r requirements.txt -r requirements-dev.txt
+endif
+	@echo "提示：真实抓数需要 akshare，执行 $(PY) -m pip install akshare"
 
 $(VENV):
+ifdef UV
 	$(UV) venv $(VENV)
+else
+	python3 -m venv $(VENV)
+endif
 
 web/node_modules: web/package.json
 	npm --prefix web install
