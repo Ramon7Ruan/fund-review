@@ -73,8 +73,8 @@ if [ -n "$MODIFIED" ]; then
   exit 1
 fi
 UNTRACKED="$(git status --porcelain | grep -c '^??' || true)"
-echo "   未跟踪路径数：$UNTRACKED（预期为 2，即两个新目录）"
-if [ "$UNTRACKED" -lt 2 ]; then
+echo "   未跟踪路径数：${UNTRACKED}（预期为 2，即两个新目录）"
+if [ "${UNTRACKED}" -lt 2 ]; then
   echo "   失败：没有看到新增目录"
   exit 1
 fi
