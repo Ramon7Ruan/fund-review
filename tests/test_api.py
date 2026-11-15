@@ -3,55 +3,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
-from typing import Any
 
 import pytest
 from fastapi.testclient import TestClient
 
 from api.app import create_app
 from api.deps import get_service
-from data_pipeline.sources.akshare_source import SourceUnavailable
-
-
-class FakeService:
-    def get_fund(self, code: str) -> dict[str, Any]:
-        return {
-            "code": code,
-            "name": "测试基金",
-            "type": "混合型",
-            "company": "测试公司",
-            "cached": False,
-        }
-
-    def get_nav(self, code: str, month: str | None = None) -> tuple[list[dict], dict]:
-        meta = {
-            "source": "fake",
-            "cached": False,
-            "total_points": 2,
-            "month_points": 2,
-            "attempts": [],
-        }
-        if month == "1900-01":
-            return [], {**meta, "total_points": 0, "month_points": 0}
-        return (
-            [
-                {"date": f"{month}-01", "nav": 1.0},
-                {"date": f"{month}-28", "nav": 1.1},
-            ],
-            meta,
-        )
-
-    def get_holdings(self, code: str, year: str) -> tuple[list[dict], dict]:
-        quarter = f"{year}年1季度股票投资明细"
-        return (
-            [{"code": "600519", "name": "贵州茅台", "weight": 0.1, "quarter": quarter}],
-            {"source": "fake", "cached": False, "quarter": quarter, "count": 1, "attempts": []},
-        )
-
-
-class FailingService(FakeService):
-    def get_nav(self, code: str, month: str | None = None) -> tuple[list[dict], dict]:
-        raise SourceUnavailable("akshare 未安装")
+from tests.fakes import FailingService, FakeService
 
 
 @pytest.fixture

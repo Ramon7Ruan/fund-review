@@ -163,6 +163,16 @@ class PluginRegistry:
     def describe(self) -> list[dict[str, Any]]:
         return [item.describe() for item in self.all()]
 
+    # ---------- 动态注册（测试与后续扩展用） ----------
+
+    def register(self, plugin: AlgorithmPlugin) -> None:
+        """手动注册一个插件。目录自动发现之外的补充入口。"""
+        self._items[plugin.id] = LoadedPlugin(module=f"<manual:{plugin.id}>", plugin=plugin)
+
+    def unregister(self, plugin_id: str) -> None:
+        self._items.pop(plugin_id, None)
+        self._failed.pop(plugin_id, None)
+
     # ---------- 执行 ----------
 
     def execute(self, plugin_id: str, ctx: PluginContext) -> PluginResult:
