@@ -33,6 +33,8 @@ bash scripts/install-hooks.sh
 
 需要 Python 3.11+ 与 Node 20+。装了 [`uv`](https://docs.astral.sh/uv/) 会更快；没装也能用，`make setup` 会自动回退到 `venv` + `pip`。
 
+后端依赖版本已锁定在 `requirements-lock.txt`，本机与 CI 装到同一版本，不会出现"我这能跑、你那报错"。
+
 ```bash
 make setup     # 安装后端与前端依赖（首次）
 make dev       # 同时启动后端 8000 与前端 5173

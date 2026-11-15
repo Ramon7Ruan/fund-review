@@ -1,0 +1,46 @@
+# 依赖锁定文件（Python 3.11，2026-11-15 由 uv pip freeze 生成）
+#
+# 用途：让组员本机与 CI 装到完全相同的版本，避免"我这能跑、你那报错"。
+# 安装入口：make setup（内部使用本文件，不再直接读 requirements.txt）
+#
+# 需要升级依赖时，在干净环境中重新生成：
+#   uv venv /tmp/lock-venv --python 3.11
+#   uv pip install --python /tmp/lock-venv/bin/python -r requirements.txt -r requirements-dev.txt
+#   uv pip freeze --python /tmp/lock-venv/bin/python > requirements-lock.txt
+#
+# 注意：akshare 是可选依赖，不在本文件中。CI 不安装；本地真实抓数时单独装：
+#   .venv/bin/python -m pip install akshare
+
+annotated-doc==0.0.6
+annotated-types==0.8.0
+anyio==4.16.0
+certifi==2026.10.23
+click==8.5.1
+fastapi==0.163.1
+h11==0.16.0
+httpcore==1.0.9
+httptools==0.9.0
+httpx==0.28.1
+idna==3.20
+iniconfig==2.3.1
+numpy==2.4.6
+opentelemetry-api==1.45.2
+packaging==26.3
+pandas==3.1.1
+pluggy==1.7.0
+pydantic==2.14.3
+pydantic-core==2.50.4
+pygments==2.21.0
+pytest==9.2.0
+python-dateutil==4.0.0
+python-dotenv==1.2.4
+pyyaml==6.0.3
+ruff==0.17.5
+starlette==1.10.0
+typing-extensions==4.16.0
+typing-inspection==0.4.5
+tzdata==2026.6
+uvicorn==0.54.0
+uvloop==0.23.0
+watchfiles==1.3.0
+websockets==17.4
