@@ -19,8 +19,8 @@ jobs:
         with:
           python-version: "3.11"
           cache: pip
-      - name: 安装依赖
-        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: 安装依赖（使用锁定版本）
+        run: pip install -r requirements-lock.txt
       - name: 代码风格
         run: |
           ruff check .

@@ -16,9 +16,9 @@ help:
 
 setup: $(VENV) web/node_modules
 ifdef UV
-	$(UV) pip install --python $(PY) -r requirements.txt -r requirements-dev.txt
+	$(UV) pip install --python $(PY) -r requirements-lock.txt
 else
-	$(PY) -m pip install -r requirements.txt -r requirements-dev.txt
+	$(PY) -m pip install -r requirements-lock.txt
 endif
 	@echo "提示：真实抓数需要 akshare，执行 $(PY) -m pip install akshare"
 
