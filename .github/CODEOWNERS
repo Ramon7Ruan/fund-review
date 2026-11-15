@@ -1,0 +1,18 @@
+# CODEOWNERS — 谁必须批准哪些改动
+#
+# 用途：本仓库要求"至少 1 人 approve"且启用了 code owner review。
+# 本文件里的路径，只有列出的 owner 批准才算通过，其他人的 approve 不计入。
+
+# 默认：全仓库由组长最终把关
+*                       @Ramon7Ruan
+
+# 测试断言：只有组长可以改
+# 目的：防止"功能写不出来就把断言改成 assert True"导致 CI 假绿
+/tests/                 @Ramon7Ruan
+**/test_*.py            @Ramon7Ruan
+**/*.test.ts            @Ramon7Ruan
+**/*.spec.ts            @Ramon7Ruan
+
+# 协作基建与钩子：改这里等于改所有人的工作方式
+/.github/               @Ramon7Ruan
+/scripts/               @Ramon7Ruan

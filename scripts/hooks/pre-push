@@ -1,8 +1,18 @@
 #!/bin/sh
 # 禁止直接推送 main。所有改动必须走分支 + PR。
 # 由 scripts/install-hooks.sh 安装到 .git/hooks/pre-push
+#
+# 组长豁免：在本机执行一次
+#     git config fundreview.allowMainPush true
+# 之后直推 main 放行。该配置只写在本仓库 .git/config，不随仓库分发，
+# 组员克隆下来默认没有这项配置，照样被拦。
+# 注意：本地钩子只是提前一步拦住手滑，真正的保护在服务端 ruleset。
 
 protected="main"
+
+if [ "$(git config --bool fundreview.allowMainPush 2>/dev/null)" = "true" ]; then
+    exit 0
+fi
 
 while read -r local_ref local_sha remote_ref remote_sha; do
     case "$remote_ref" in
@@ -15,8 +25,8 @@ while read -r local_ref local_sha remote_ref remote_sha; do
             printf '    git push -u origin feat/你的功能名\n'
             printf '  然后在 GitHub 上发起 Pull Request。\n'
             printf '\n'
-            printf '  确实需要绕过（仅限紧急修复，事后必须在群里说明）：\n'
-            printf '    git push --no-verify\n'
+            printf '  组长如需直推 main（仅限紧急修复，事后必须在群里说明）：\n'
+            printf '    git config fundreview.allowMainPush true\n'
             printf '\n'
             exit 1
             ;;
