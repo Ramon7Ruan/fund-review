@@ -1,0 +1,6 @@
+# 开发与测试依赖
+pytest>=8.3
+ruff>=0.7
+
+# 真实数据抓取（可选，CI 不安装；本地跑 make probe 时需要）
+# 安装方式：uv pip install --python .venv/bin/python akshare

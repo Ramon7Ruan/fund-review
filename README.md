@@ -25,11 +25,41 @@ bash scripts/install-hooks.sh
 
 ## 本地运行
 
-> 技术栈确定后补充，目标是一行命令启动。
+需要 Python 3.11+ 与 Node 20+。
 
 ```bash
-# 待补充
+make setup     # 安装后端与前端依赖（首次）
+make dev       # 同时启动后端 8000 与前端 5173
 ```
+
+打开 http://localhost:5173 ，输入基金代码（如 110022）与月份即可生成月度回顾。
+
+真实数据抓取需要额外安装 akshare：
+
+```bash
+uv pip install --python .venv/bin/python akshare
+```
+
+其他命令：
+
+| 命令 | 作用 |
+|---|---|
+| `make check` | 类型检查 + 全部测试 + 前端构建，提 PR 前必跑 |
+| `make backend` | 只启动后端 |
+| `make frontend` | 只启动前端 |
+| `make test` | 只跑测试 |
+
+## 目录结构
+
+```
+engine/         纯计算：收益、归因、异动，不碰网络与数据库
+engine/plugins/ 算法插件，一人一目录，自动发现
+data_pipeline/  抓取、缓存、备用源切换
+api/            FastAPI 接口
+web/src/features/ 前端视图插件，一人一目录，自动发现
+tests/          后端测试
+```
+
 
 ## 协作方式
 
