@@ -19,7 +19,7 @@ import argparse
 import json
 import sys
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -137,7 +137,9 @@ def build(month: str) -> None:
         bars: list[dict] = []
         source = ""
         try:
-            df = ak.stock_zh_a_daily(symbol=symbol, start_date=f"{month}-01", end_date=f"{month}-31")
+            df = ak.stock_zh_a_daily(
+                symbol=symbol, start_date=f"{month}-01", end_date=f"{month}-31"
+            )
             source = "sina"
             for _, r in df.iterrows():
                 bars.append(
@@ -154,7 +156,9 @@ def build(month: str) -> None:
         except Exception as exc:  # noqa: BLE001
             failures.append(f"{code} 新浪行情失败：{type(exc).__name__}")
             try:
-                df = ak.stock_zh_a_hist_tx(symbol=symbol, start_date=f"{month}-01", end_date=f"{month}-31")
+                df = ak.stock_zh_a_hist_tx(
+                    symbol=symbol, start_date=f"{month}-01", end_date=f"{month}-31"
+                )
                 source = "tencent"
                 for _, r in df.iterrows():
                     bars.append(
