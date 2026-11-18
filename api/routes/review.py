@@ -101,7 +101,7 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
             "status": result.status,
             "title": meta["title"],
             "data": dict(result.data),
-            "notes": [*result.notes, *tr_meta.get("warnings", [])],
+            "notes": list(result.notes),
             "error": None,
         }
 

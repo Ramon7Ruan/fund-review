@@ -80,13 +80,33 @@ def test_holdings_weights_follow_contract(code: str, funds: dict) -> None:
 
 @pytest.mark.parametrize("code", FUND_CODES)
 def test_interval_return_matches_known_answer(code: str, funds: dict, expected: dict) -> None:
-    points = [NavPoint(**p) for p in funds[code]["nav_series"]]
+    points = [NavPoint(**{"date": p["date"], "nav": p["nav"]}) for p in funds[code]["nav_series"]]
     summary = compute_interval_return(points)
 
     answer = expected[code]
     assert summary.period_return == pytest.approx(answer["period_return"], abs=1e-6)
     assert summary.max_drawdown == pytest.approx(answer["max_drawdown"], abs=1e-6)
     assert summary.points == answer["points"]
+
+
+@pytest.mark.parametrize("code", FUND_CODES)
+def test_adjusted_return_matches_known_answer(code: str, funds: dict, expected: dict) -> None:
+    """复权口径：用 nav_total_return 的首末比值，应与 expected 一致。"""
+    index_rows = funds[code]["nav_total_return"]
+    answer = expected[code]
+
+    assert len(index_rows) >= 2
+    assert all(p["total_return_index"] > 0 for p in index_rows)
+
+    if answer["dividend_points_in_month"] > 0:
+        # 当月有分红，复权涨幅必须不为零且与净值口径不同
+        assert answer["period_return_adjusted"] != pytest.approx(
+            answer["period_return"], abs=1e-9
+        ), "有分红的月份，两个口径不应相同"
+    else:
+        assert answer["period_return_adjusted"] == pytest.approx(
+            answer["period_return"], abs=1e-9
+        ), "无分红的月份，两个口径应一致"
 
 
 def test_quotes_cover_all_holdings(funds: dict, quotes: dict) -> None:
@@ -114,3 +134,29 @@ def test_industry_indices_present() -> None:
     assert {"食品饮料", "医药生物", "电子"} <= names
     for item in data:
         assert len(item["bars"]) >= 2
+
+
+def test_dividend_case_proves_adjustment_matters() -> None:
+    """分红月样本：复权收益必须明显高于单位净值收益。
+
+    目标月份的三只基金通常不分红，两个口径相等，无法验收复权逻辑。
+    这个样本单独取了一段有分红的真实历史，专门验分红再投资。
+    """
+    case = load("dividend_case.json")
+    exp = case["expected"]
+
+    assert exp["dividend_points"] >= 1, "样本必须包含至少一个分红日"
+    assert exp["period_return_adjusted"] > exp["period_return"] + 1e-4, (
+        "有分红时复权收益应高于净值收益"
+    )
+
+    # 用指数反算，验证 expected 自身一致
+    idx = case["nav_total_return"]
+    computed = idx[-1]["total_return_index"] / idx[0]["total_return_index"] - 1
+    assert computed == pytest.approx(exp["period_return_adjusted"], abs=1e-6)
+
+    # 用净值反算，验证未复权口径
+    points = [NavPoint(date=p["date"], nav=p["nav"]) for p in case["nav_series"]]
+    assert compute_interval_return(points).period_return == pytest.approx(
+        exp["period_return"], abs=1e-6
+    )

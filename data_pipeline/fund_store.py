@@ -61,7 +61,9 @@ class FundDataStore:
     def __init__(self, path: str | Path = "data/cache/fund_review.db") -> None:
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        self.conn = sqlite3.connect(target)
+        # FastAPI 的同步路由跑在线程池里，连接必须允许跨线程使用；
+        # timeout 用于并发写时等待锁，避免直接抛 database is locked。
+        self.conn = sqlite3.connect(target, check_same_thread=False, timeout=5)
         self.conn.row_factory = sqlite3.Row
         self.conn.executescript("""
             CREATE TABLE IF NOT EXISTS holding_snapshot (

@@ -36,11 +36,15 @@
 ```
 fixtures/
   manifest.json      # 生成时间、来源、统计、失败记录
-  funds.json         # {基金代码: {fund, month, nav_series, holdings}}
+  funds.json         # {基金代码: {fund, month, nav_series, nav_total_return, holdings}}
   quotes.json        # {股票代码: {code, name, source, bars[]}}
   industries.json    # 三个申万一级行业的指数日线
-  expected.json      # 已知答案：区间收益、最大回撤、前十大权重和
+  expected.json      # 已知答案：区间收益、最大回撤、复权收益、前十大权重和
 ```
+
+`nav_series` 每项带 `dividend_per_share`（除息日每份分红，无分红为 0）；
+`nav_total_return` 是月内复权总回报指数子集，**基准日是数据源首日，不是月初**，
+所以首值通常不是 1。比较区间收益时用首末比值。
 
 ## 在测试里怎么用
 

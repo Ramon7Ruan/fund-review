@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-11-18T14:08:42+08:00",
+  "generated_at": "2026-11-18T16:13:04+08:00",
   "month": "2026-10",
   "source": "akshare（东方财富 / 新浪财经 / 腾讯财经 / 申万宏源研究）",
   "funds": [
@@ -12,18 +12,24 @@
     "funds": {
       "110022": {
         "nav_points": 17,
+        "index_points": 17,
+        "dividend_days_in_month": 0,
         "holdings": 10,
         "quarter": "2026年1季度股票投资明细",
         "weight_sum": 0.6724
       },
       "003095": {
         "nav_points": 17,
+        "index_points": 17,
+        "dividend_days_in_month": 0,
         "holdings": 10,
         "quarter": "2026年1季度股票投资明细",
         "weight_sum": 0.6769
       },
       "519674": {
         "nav_points": 17,
+        "index_points": 17,
+        "dividend_days_in_month": 0,
         "holdings": 10,
         "quarter": "2026年1季度股票投资明细",
         "weight_sum": 0.8262
@@ -34,7 +40,12 @@
       "食品饮料",
       "医药生物",
       "电子"
-    ]
+    ],
+    "dividend_case": {
+      "period_return": -0.15423148,
+      "period_return_adjusted": -0.12512763,
+      "dividend_points": 1
+    }
   },
   "failures": [],
   "notes": [

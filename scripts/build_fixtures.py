@@ -26,6 +26,9 @@ ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "tests" / "fixtures"
 sys.path.insert(0, str(ROOT))
 
+from data_pipeline.sources.eastmoney_dividends import fetch_fund_dividends  # noqa: E402
+from engine.returns.dividend import total_return_index  # noqa: E402
+
 # 三只基金，覆盖三个申万一级行业，模拟一个基金投资用户的持仓结构
 FUNDS = [
     {"code": "110022", "label": "易方达消费行业", "theme": "食品饮料"},
@@ -77,17 +80,49 @@ def build(month: str) -> None:
         code = fund["code"]
         log(f"== {code} {fund['label']} ==")
 
+        nav_all: list[dict] = []
         try:
             nav_df = ak.fund_open_fund_info_em(symbol=code, indicator="单位净值走势")
             nav_all = [
                 {"date": str(r["净值日期"]), "nav": float(r["单位净值"])}
                 for _, r in nav_df.iterrows()
             ]
-            nav_month = sorted(month_filter(nav_all, month), key=lambda x: x["date"])
         except Exception as exc:  # noqa: BLE001
             failures.append(f"{code} 净值抓取失败：{type(exc).__name__}: {exc}")
-            nav_month = []
         time.sleep(PAUSE)
+
+        # 分红记录：抓不到不影响净值，但要在 failures 里留痕
+        dividends: dict[str, float] = {}
+        try:
+            dividends = {d["date"]: d["dividend_per_share"] for d in fetch_fund_dividends(code)}
+        except Exception as exc:  # noqa: BLE001
+            failures.append(f"{code} 分红抓取失败：{type(exc).__name__}: {exc}")
+        time.sleep(PAUSE)
+
+        # 复权指数用全量历史计算（基准日=数据源首日），再取当月子集
+        indexed = total_return_index(
+            [
+                {
+                    "date": p["date"],
+                    "unit_nav": p["nav"],
+                    "dividend_per_share": dividends.get(p["date"], 0.0),
+                }
+                for p in nav_all
+            ]
+        )
+        index_month = [
+            {"date": p["date"], "total_return_index": p["total_return_index"]}
+            for p in indexed
+            if p["date"].startswith(month)
+        ]
+        nav_month = [
+            {
+                "date": p["date"],
+                "nav": p["nav"],
+                "dividend_per_share": dividends.get(p["date"], 0.0),
+            }
+            for p in sorted(month_filter(nav_all, month), key=lambda x: x["date"])
+        ]
 
         try:
             hold_df = ak.fund_portfolio_hold_em(symbol=code, date=year)
@@ -116,11 +151,14 @@ def build(month: str) -> None:
             "fund": {"code": code, "name": fund["label"], "theme": fund["theme"]},
             "month": month,
             "nav_series": nav_month,
+            "nav_total_return": index_month,
             "holdings": holdings,
             "disclosure_quarter": quarter,
         }
         stats["funds"][code] = {
             "nav_points": len(nav_month),
+            "index_points": len(index_month),
+            "dividend_days_in_month": sum(1 for p in nav_month if p["dividend_per_share"] > 0),
             "holdings": len(holdings),
             "quarter": quarter,
             "weight_sum": round(sum(h["weight"] for h in holdings), 6),
@@ -233,6 +271,17 @@ def build(month: str) -> None:
             "max_drawdown": round(max_dd, 8),
             "points": len(series),
             "weight_sum_top10": round(sum(h["weight"] for h in data["holdings"]), 8),
+            "period_return_adjusted": (
+                round(
+                    data["nav_total_return"][-1]["total_return_index"]
+                    / data["nav_total_return"][0]["total_return_index"]
+                    - 1.0,
+                    8,
+                )
+                if len(data["nav_total_return"]) >= 2
+                else None
+            ),
+            "dividend_points_in_month": sum(1 for p in series if p["dividend_per_share"] > 0),
         }
     (OUT / "expected.json").write_text(
         json.dumps(expected, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -244,7 +293,80 @@ def build(month: str) -> None:
         json.dumps(quotes_payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
-    # ---------- 5. 元信息 ----------
+    # ---------- 5. 分红月样本：真实验收复权口径 ----------
+    # 上面三只基金在目标月份通常无分红，复权与不复权相等，无法验收差异。
+    # 这里额外取一段"确实有分红"的历史区间，专门用来验分红再投资。
+    DIVIDEND_CASE = {"code": "003095", "month": "2021-08"}
+    log(f"\n== 分红月样本：{DIVIDEND_CASE['code']} / {DIVIDEND_CASE['month']} ==")
+    try:
+        c_df = ak.fund_open_fund_info_em(symbol=DIVIDEND_CASE["code"], indicator="单位净值走势")
+        c_all = [
+            {"date": str(r["净值日期"]), "nav": float(r["单位净值"])} for _, r in c_df.iterrows()
+        ]
+        c_div = {
+            d["date"]: d["dividend_per_share"] for d in fetch_fund_dividends(DIVIDEND_CASE["code"])
+        }
+        c_indexed = total_return_index(
+            [
+                {
+                    "date": p["date"],
+                    "unit_nav": p["nav"],
+                    "dividend_per_share": c_div.get(p["date"], 0.0),
+                }
+                for p in c_all
+            ]
+        )
+        m = DIVIDEND_CASE["month"]
+        c_nav_month = sorted(
+            [
+                {
+                    "date": p["date"],
+                    "nav": p["nav"],
+                    "dividend_per_share": c_div.get(p["date"], 0.0),
+                }
+                for p in c_all
+                if p["date"].startswith(m)
+            ],
+            key=lambda x: x["date"],
+        )
+        c_idx_month = sorted(
+            [
+                {"date": p["date"], "total_return_index": p["total_return_index"]}
+                for p in c_indexed
+                if p["date"].startswith(m)
+            ],
+            key=lambda x: x["date"],
+        )
+        if len(c_nav_month) >= 2 and len(c_idx_month) >= 2:
+            case = {
+                "fund_code": DIVIDEND_CASE["code"],
+                "month": m,
+                "note": "该月含分红，用于验收复权：period_return_adjusted 应明显高于 period_return",
+                "nav_series": c_nav_month,
+                "nav_total_return": c_idx_month,
+                "expected": {
+                    "period_return": round(c_nav_month[-1]["nav"] / c_nav_month[0]["nav"] - 1.0, 8),
+                    "period_return_adjusted": round(
+                        c_idx_month[-1]["total_return_index"] / c_idx_month[0]["total_return_index"]
+                        - 1.0,
+                        8,
+                    ),
+                    "dividend_points": sum(1 for p in c_nav_month if p["dividend_per_share"] > 0),
+                },
+            }
+            (OUT / "dividend_case.json").write_text(
+                json.dumps(case, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            stats["dividend_case"] = case["expected"]
+            diff = case["expected"]["period_return_adjusted"] - case["expected"]["period_return"]
+            log(f"   分红日 {case['expected']['dividend_points']} 个，复权差 {diff:.4%}")
+        else:
+            failures.append("分红月样本数据不足，未生成")
+    except Exception as exc:  # noqa: BLE001
+        failures.append(f"分红月样本失败：{type(exc).__name__}: {exc}")
+    time.sleep(PAUSE)
+
+    # ---------- 6. 元信息 ----------
     manifest = {
         "generated_at": datetime.now(timezone(timedelta(hours=8))).isoformat(timespec="seconds"),
         "month": month,
