@@ -1,18 +1,33 @@
 # CODEOWNERS — 谁必须批准哪些改动
 #
-# 用途：本仓库要求"至少 1 人 approve"且启用了 code owner review。
-# 本文件里的路径，只有列出的 owner 批准才算通过，其他人的 approve 不计入。
+# 本仓库启用了 code owner review：改动涉及下列路径时，只有 owner 批准才算通过。
+# 不在本文件中的路径，只需"任意 1 人 approve + CI 全绿"即可合并。
 
-# 默认：全仓库由组长最终把关
-*                       @Ramon7Ruan
+# ---------- 核心计算与接口：必须组长批准 ----------
+/engine/runtime/          @Ramon7Ruan
+/engine/returns/          @Ramon7Ruan
+/engine/attribution/      @Ramon7Ruan
+/engine/screening/        @Ramon7Ruan
+/api/                     @Ramon7Ruan
+/data_pipeline/           @Ramon7Ruan
 
-# 测试断言：只有组长可以改
-# 目的：防止"功能写不出来就把断言改成 assert True"导致 CI 假绿
-/tests/                 @Ramon7Ruan
-**/test_*.py            @Ramon7Ruan
-**/*.test.ts            @Ramon7Ruan
-**/*.spec.ts            @Ramon7Ruan
+# ---------- 测试断言：只有组长可以改 ----------
+# 防止"功能写不出来就把断言改成 assert True"导致 CI 假绿
+/tests/                   @Ramon7Ruan
+**/test_*.py              @Ramon7Ruan
+**/*.test.ts              @Ramon7Ruan
+**/*.spec.ts              @Ramon7Ruan
 
-# 协作基建与钩子：改这里等于改所有人的工作方式
-/.github/               @Ramon7Ruan
-/scripts/               @Ramon7Ruan
+# ---------- 协作基建与依赖：改这里等于改所有人的工作方式 ----------
+/.github/                 @Ramon7Ruan
+/scripts/                 @Ramon7Ruan
+/Makefile                 @Ramon7Ruan
+/pyproject.toml           @Ramon7Ruan
+/requirements.txt         @Ramon7Ruan
+/requirements-dev.txt     @Ramon7Ruan
+/requirements-lock.txt    @Ramon7Ruan
+
+# ---------- 插件目录刻意不列入 ----------
+# engine/plugins/<你的名字>/ 与 web/src/features/<你的名字>/ 的新增与修改，
+# 只需任意 1 人 approve + CI 全绿，不强制组长 review。
+# 这两个目录相互隔离，配合 CI 与目录约定，可以保证不会破坏主干。
