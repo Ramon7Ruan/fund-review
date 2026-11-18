@@ -1,0 +1,29 @@
+{
+  "110022": {
+    "name": "易方达消费行业",
+    "start_date": "2026-10-08",
+    "end_date": "2026-10-30",
+    "period_return": 0.03984064,
+    "max_drawdown": -0.03261255,
+    "points": 17,
+    "weight_sum_top10": 0.6724
+  },
+  "003095": {
+    "name": "中欧医疗健康混合",
+    "start_date": "2026-10-08",
+    "end_date": "2026-10-30",
+    "period_return": -0.07159473,
+    "max_drawdown": -0.09289222,
+    "points": 17,
+    "weight_sum_top10": 0.6769
+  },
+  "519674": {
+    "name": "银河创新成长混合",
+    "start_date": "2026-10-08",
+    "end_date": "2026-10-30",
+    "period_return": -0.15646462,
+    "max_drawdown": -0.15646462,
+    "points": 17,
+    "weight_sum_top10": 0.8262
+  }
+}

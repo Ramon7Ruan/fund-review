@@ -1,7 +1,8 @@
 [tool.ruff]
 line-length = 100
 target-version = "py311"
-exclude = [".venv", "web", "node_modules"]
+# 只格式化 Python 源码：文档（含代码块）与数据样本不纳入 ruff 范围
+exclude = [".venv", "web", "node_modules", "*.md", "tests/fixtures"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
