@@ -65,11 +65,11 @@ def build(month: str) -> None:
 
     year = month[:4]
     OUT.mkdir(parents=True, exist_ok=True)
-    for sub in ("funds", "quotes", "industries", "expected"):
-        (OUT / sub).mkdir(exist_ok=True)
 
     failures: list[str] = []
     stats: dict[str, object] = {"funds": {}, "quotes": 0, "industries": []}
+    funds_payload: dict[str, dict] = {}
+    quotes_payload: dict[str, dict] = {}
 
     # ---------- 1. 基金净值与持仓 ----------
     all_quotes: dict[str, dict] = {}
@@ -112,16 +112,13 @@ def build(month: str) -> None:
             quarter, holdings = "", []
         time.sleep(PAUSE)
 
-        payload = {
+        funds_payload[code] = {
             "fund": {"code": code, "name": fund["label"], "theme": fund["theme"]},
             "month": month,
             "nav_series": nav_month,
             "holdings": holdings,
             "disclosure_quarter": quarter,
         }
-        (OUT / "funds" / f"{code}.json").write_text(
-            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-        )
         stats["funds"][code] = {
             "nav_points": len(nav_month),
             "holdings": len(holdings),
@@ -176,10 +173,13 @@ def build(month: str) -> None:
 
         bars = sorted(month_filter(bars, month), key=lambda x: x["date"])
         if bars:
-            payload = {"code": code, "name": meta["name"], "month": month, "source": source, "bars": bars}
-            (OUT / "quotes" / f"{code}.json").write_text(
-                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            quotes_payload[code] = {
+                "code": code,
+                "name": meta["name"],
+                "month": month,
+                "source": source,
+                "bars": bars,
+            }
             stats["quotes"] = int(stats["quotes"]) + 1
         time.sleep(PAUSE)
     log(f"   成功 {stats['quotes']} / {len(all_quotes)} 只")
@@ -203,7 +203,7 @@ def build(month: str) -> None:
             failures.append(f"行业指数 {name} 失败：{type(exc).__name__}: {exc}")
         time.sleep(PAUSE)
 
-    (OUT / "industries" / f"sw_level1_{month}.json").write_text(
+    (OUT / "industries.json").write_text(
         json.dumps(industry_payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
@@ -211,7 +211,7 @@ def build(month: str) -> None:
     expected = {}
     for fund in FUNDS:
         code = fund["code"]
-        data = json.loads((OUT / "funds" / f"{code}.json").read_text(encoding="utf-8"))
+        data = funds_payload[code]
         series = data["nav_series"]
         if len(series) < 2:
             continue
@@ -230,8 +230,14 @@ def build(month: str) -> None:
             "points": len(series),
             "weight_sum_top10": round(sum(h["weight"] for h in data["holdings"]), 8),
         }
-    (OUT / "expected" / f"interval_returns_{month}.json").write_text(
+    (OUT / "expected.json").write_text(
         json.dumps(expected, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (OUT / "funds.json").write_text(
+        json.dumps(funds_payload, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+    (OUT / "quotes.json").write_text(
+        json.dumps(quotes_payload, ensure_ascii=False, indent=2), encoding="utf-8"
     )
 
     # ---------- 5. 元信息 ----------
