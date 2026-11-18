@@ -15,6 +15,7 @@ from api.schemas import ReviewRequest, ReviewResponse
 from data_pipeline.service import DataService
 from data_pipeline.sources.akshare_source import SourceUnavailable
 from engine.runtime import PluginContext, registry
+from engine.validation import clean_nav_series, validate_holdings
 
 router = APIRouter(prefix="/api", tags=["review"])
 
@@ -40,12 +41,27 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
             detail=f"{payload.fund_code} 在 {month} 没有净值数据，可能尚未披露或月份写错",
         )
 
+    # 进入 engine 之前统一清洗：非法点剔除，不足两点则拒绝继续
+    nav_series, nav_report = clean_nav_series(nav_series, month=month)
+    errors.extend(nav_report.warnings)
+    if not nav_report.ok:
+        raise HTTPException(
+            status_code=404,
+            detail=f"{payload.fund_code} 在 {month} 的净值数据无法用于计算："
+            + "；".join(nav_report.errors),
+        )
+
     holdings: list[dict] = []
     holdings_meta: dict = {}
     try:
         holdings, holdings_meta = service.get_holdings(payload.fund_code, year)
     except SourceUnavailable as exc:
         errors.append(f"持仓数据不可用：{exc}")
+
+    # 持仓问题不阻塞主流程，但必须写进 errors，不允许静默
+    holdings_report = validate_holdings(holdings)
+    errors.extend(holdings_report.errors)
+    errors.extend(holdings_report.warnings)
 
     ctx = PluginContext(
         fund=fund,
