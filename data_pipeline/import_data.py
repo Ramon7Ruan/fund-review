@@ -1,4 +1,4 @@
-"""运行：python -m data_pipeline.import_data <holdings|nav|month> ..."""
+"""运行：python -m data_pipeline.import_data <holdings|nav|sync-nav|adjusted-nav|month> ..."""
 
 from __future__ import annotations
 
@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 
 from data_pipeline.fund_store import FundDataStore
+from data_pipeline.service import DataService
+from engine.returns.dividend import total_return_index
 
 
 def main() -> None:
@@ -15,21 +17,27 @@ def main() -> None:
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("holdings").add_argument("csv_file", type=Path)
     commands.add_parser("nav").add_argument("csv_file", type=Path)
+    commands.add_parser("sync-nav").add_argument("fund_code")
+    commands.add_parser("adjusted-nav").add_argument("fund_code")
     month = commands.add_parser("month")
     month.add_argument("fund_code")
     month.add_argument("month")
     args = parser.parse_args()
-    store = FundDataStore(args.db)
+    service = DataService(fund_store=FundDataStore(args.db))
     try:
         if args.command == "holdings":
-            result = store.import_holdings_csv(args.csv_file.read_bytes())
+            result = service.import_holdings_csv(args.csv_file.read_bytes())
         elif args.command == "nav":
-            result = store.import_nav_csv(args.csv_file.read_bytes())
+            result = service.import_nav_csv(args.csv_file.read_bytes())
+        elif args.command == "sync-nav":
+            result = service.sync_nav(args.fund_code)
+        elif args.command == "adjusted-nav":
+            result = total_return_index(service.fund_store.nav_series(args.fund_code))
         else:
-            result = store.month_snapshots(args.fund_code, args.month)
+            result = service.month_snapshots(args.fund_code, args.month)
         print(json.dumps(result, ensure_ascii=False, indent=2))
     finally:
-        store.close()
+        service.close()
 
 
 if __name__ == "__main__":

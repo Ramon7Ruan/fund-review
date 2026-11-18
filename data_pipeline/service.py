@@ -6,11 +6,15 @@
 
 from __future__ import annotations
 
+import csv
+import io
 from typing import Any
 
 from data_pipeline.cache.store import Cache, MemoryCache
 from data_pipeline.fallback import SourceChain
-from data_pipeline.sources import akshare_source
+from data_pipeline.fund_store import FundDataStore
+from data_pipeline.sources import akshare_source, danjuan_fund, eastmoney_dividends
+from data_pipeline.sources.akshare_source import SourceUnavailable
 
 NAV_TTL_SECONDS = 6 * 3600
 HOLDINGS_TTL_SECONDS = 7 * 24 * 3600
@@ -22,14 +26,51 @@ class DataService:
         cache: Cache | None = None,
         nav_chain: SourceChain | None = None,
         holdings_chain: SourceChain | None = None,
+        fund_store: FundDataStore | None = None,
     ) -> None:
         self.cache: Cache = cache or MemoryCache()
         self.nav_chain = nav_chain or SourceChain(
-            "基金净值", [("akshare.eastmoney", akshare_source.fetch_fund_nav)]
+            "基金净值",
+            [
+                ("akshare.eastmoney", akshare_source.fetch_fund_nav),
+                ("danjuan", danjuan_fund.fetch_fund_nav),
+            ],
         )
         self.holdings_chain = holdings_chain or SourceChain(
             "基金持仓", [("akshare.eastmoney", akshare_source.fetch_fund_holdings)]
         )
+        self._fund_store = fund_store
+
+    @property
+    def fund_store(self) -> FundDataStore:
+        if self._fund_store is None:
+            self._fund_store = FundDataStore()
+        return self._fund_store
+
+    def import_holdings_csv(self, content: str | bytes) -> dict[str, int]:
+        return self.fund_store.import_holdings_csv(content)
+
+    def month_snapshots(self, code: str, month: str) -> dict[str, Any]:
+        return self.fund_store.month_snapshots(code, month)
+
+    def import_nav_csv(self, content: str | bytes) -> dict[str, int]:
+        return self.fund_store.import_nav_csv(content)
+
+    def sync_nav(self, code: str) -> dict[str, Any]:
+        """拉取净值和除息记录，校验后一次性写入持久表。"""
+        nav, meta = self.get_nav(code)
+        dividends = {
+            item["date"]: item["dividend_per_share"]
+            for item in eastmoney_dividends.fetch_fund_dividends(code)
+        }
+        if set(dividends) - {item["date"] for item in nav}:
+            raise SourceUnavailable("分红除息日缺少对应基金净值，不能完成复权")
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(("fund_code", "date", "unit_nav", "dividend_per_share"))
+        for item in nav:
+            writer.writerow((code, item["date"], item["nav"], dividends.get(item["date"], 0)))
+        return {**self.import_nav_csv(output.getvalue()), "nav_source": meta["source"]}
 
     # ---------- 基金信息 ----------
 
@@ -102,6 +143,8 @@ class DataService:
         return latest, meta
 
     def close(self) -> None:
+        if self._fund_store is not None:
+            self._fund_store.close()
         close = getattr(self.cache, "close", None)
         if callable(close):
             close()
