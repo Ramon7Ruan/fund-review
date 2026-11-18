@@ -121,3 +121,31 @@ def test_review_exposes_adjusted_source_and_keeps_results():
     response = review(ReviewRequest(fund_code="110022", month="2026-10"), FakeService())
     assert response.results["returns.interval"].status == "ready"
     assert response.meta["nav_total_return"]["dividend_source"] == "fake"
+
+
+def test_dividends_are_cached_across_calls(tmp_path, monkeypatch):
+    """分红记录变动极少，重复请求不应反复访问数据源。"""
+    calls: list[str] = []
+
+    def fake_dividends(code):
+        calls.append(code)
+        return [{"date": "2026-10-15", "dividend_per_share": 0.2}]
+
+    monkeypatch.setattr(eastmoney_dividends, "fetch_fund_dividends", fake_dividends)
+    service = _service(
+        tmp_path,
+        [
+            (
+                "remote",
+                lambda code: [
+                    {"date": "2026-10-15", "nav": 0.9},
+                    {"date": "2026-10-30", "nav": 0.99},
+                ],
+            )
+        ],
+    )
+    service.get_nav_adjusted("110022", "2026-10")
+    service.get_nav_adjusted("110022", "2026-10")
+
+    assert len(calls) == 1, "第二次请求应命中分红缓存"
+    service.close()

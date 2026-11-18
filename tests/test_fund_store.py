@@ -169,3 +169,20 @@ def test_nav_import_requires_explicit_dividend_column(tmp_path) -> None:
     with pytest.raises(ValueError, match="dividend_per_share"):
         store.import_nav_csv("fund_code,date,unit_nav\n110022,2026-10-30,1.0\n")
     store.close()
+
+
+def test_store_is_usable_from_another_thread(tmp_path) -> None:
+    """FastAPI 的同步路由跑在线程池里，SQLite 连接必须允许跨线程使用。
+
+    回归测试：连接若用默认的 check_same_thread=True，接口会直接 500。
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    store = FundDataStore(tmp_path / "fund.db")
+    store.import_nav_csv("fund_code,date,unit_nav,dividend_per_share\n110022,2026-10-30,1.0,0\n")
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        rows = pool.submit(store.nav_series, "110022").result()
+
+    assert rows == [{"date": "2026-10-30", "nav": 1.0}]
+    store.close()

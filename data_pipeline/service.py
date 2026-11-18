@@ -19,6 +19,8 @@ from engine.returns.dividend import total_return_index
 
 NAV_TTL_SECONDS = 6 * 3600
 HOLDINGS_TTL_SECONDS = 7 * 24 * 3600
+# 分红变动极少，缓存一周；sync_nav 主动同步时不走缓存
+DIVIDEND_TTL_SECONDS = 7 * 24 * 3600
 
 
 class DataService:
@@ -136,10 +138,27 @@ class DataService:
             meta.update(fallback=True, as_of=series[-1]["date"])
         return filtered, meta
 
+    def _fetch_dividends(self, code: str) -> list[dict[str, Any]]:
+        """分红记录带缓存：变动极少，每次请求都抓会拖慢页面并可能触发风控。
+
+        与 sync_nav 的区别：sync_nav 是用户主动同步，要最新数据，因此不走缓存。
+        """
+        key = f"dividends:{code}"
+        cached = self.cache.get(key)
+        if cached is not None:
+            return cached
+        rows = eastmoney_dividends.fetch_fund_dividends(code)
+        self.cache.set(key, rows, ttl_seconds=DIVIDEND_TTL_SECONDS)
+        return rows
+
     def get_nav_adjusted(
         self, code: str, month: str | None = None
     ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
-        """Compute the total-return index over the full history, then select a month."""
+        """Compute the total-return index over the full history, then select a month.
+
+        返回的 total_return_index 以**数据源首日**锚定为 1（通常是基金成立附近），
+        不是月初归一化。插件应使用首末比值计算区间收益，不要直接展示绝对值。
+        """
         nav, nav_meta = self.get_nav(code)
         warnings: list[str] = []
         dividend_source = "eastmoney"
@@ -151,8 +170,7 @@ class DataService:
         else:
             try:
                 dividends = {
-                    p["date"]: p["dividend_per_share"]
-                    for p in eastmoney_dividends.fetch_fund_dividends(code)
+                    p["date"]: p["dividend_per_share"] for p in self._fetch_dividends(code)
                 }
                 missing = set(dividends) - {p["date"] for p in nav}
                 if missing:

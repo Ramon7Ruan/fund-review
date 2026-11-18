@@ -1,155 +1,4 @@
 {
-  "003095": {
-    "fund": {
-      "code": "003095",
-      "name": "中欧医疗健康混合",
-      "theme": "医药生物"
-    },
-    "month": "2026-10",
-    "nav_series": [
-      {
-        "date": "2026-10-08",
-        "nav": 1.9345
-      },
-      {
-        "date": "2026-10-09",
-        "nav": 1.9272
-      },
-      {
-        "date": "2026-10-12",
-        "nav": 1.8949
-      },
-      {
-        "date": "2026-10-13",
-        "nav": 1.8698
-      },
-      {
-        "date": "2026-10-14",
-        "nav": 1.8432
-      },
-      {
-        "date": "2026-10-15",
-        "nav": 1.8355
-      },
-      {
-        "date": "2026-10-16",
-        "nav": 1.7966
-      },
-      {
-        "date": "2026-10-19",
-        "nav": 1.8235
-      },
-      {
-        "date": "2026-10-20",
-        "nav": 1.8652
-      },
-      {
-        "date": "2026-10-21",
-        "nav": 1.859
-      },
-      {
-        "date": "2026-10-22",
-        "nav": 1.8053
-      },
-      {
-        "date": "2026-10-23",
-        "nav": 1.8453
-      },
-      {
-        "date": "2026-10-26",
-        "nav": 1.8348
-      },
-      {
-        "date": "2026-10-27",
-        "nav": 1.7548
-      },
-      {
-        "date": "2026-10-28",
-        "nav": 1.7936
-      },
-      {
-        "date": "2026-10-29",
-        "nav": 1.7983
-      },
-      {
-        "date": "2026-10-30",
-        "nav": 1.796
-      }
-    ],
-    "holdings": [
-      {
-        "code": "603259",
-        "name": "药明康德",
-        "weight": 0.1008,
-        "industry": "",
-        "quarter": "2026年1季度股票投资明细"
-      },
-      {
-        "code": "600276",
-        "name": "恒瑞医药",
-        "weight": 0.0974,
-        "industry": "",
-        "quarter": "2026年1季度股票投资明细"
-      },
-      {
-        "code": "300759",
-        "name": "康龙化成",
-        "weight": 0.0756,
-        "industry": "",
-        "quarter": "2026年1季度股票投资明细"
-      },
-      {
-        "code": "002821",
-        "name": "凯莱英",
-        "weight": 0.0715,
-        "industry": "",
-        "quarter": "2026年1季度股票投资明细"
-      },
-      {
-        "code": "002653",
-        "name": "海思科",
-        "weight": 0.0647,
-        "industry": "",
-        "quarter": "2026年1季度股票投资明细"
-      },
-      {
-        "code": "688506",
-        "name": "百利天恒",
-        "weight": 0.0637,
-        "industry": "",
-        "quarter": "2026年1季度股票投资明细"
-      },
-      {
-        "code": "002422",
-        "name": "科伦药业",
-        "weight": 0.0576,
-        "industry": "",
-        "quarter": "2026年1季度股票投资明细"
-      },
-      {
-        "code": "002294",
-        "name": "信立泰",
-        "weight": 0.0572,
-        "industry": "",
-        "quarter": "2026年1季度股票投资明细"
-      },
-      {
-        "code": "300347",
-        "name": "泰格医药",
-        "weight": 0.0568,
-        "industry": "",
-        "quarter": "2026年1季度股票投资明细"
-      },
-      {
-        "code": "688578",
-        "name": "艾力斯",
-        "weight": 0.0316,
-        "industry": "",
-        "quarter": "2026年1季度股票投资明细"
-      }
-    ],
-    "disclosure_quarter": "2026年1季度股票投资明细"
-  },
   "110022": {
     "fund": {
       "code": "110022",
@@ -160,71 +9,158 @@
     "nav_series": [
       {
         "date": "2026-10-08",
-        "nav": 2.761
+        "nav": 2.761,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-09",
-        "nav": 2.788
+        "nav": 2.788,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-12",
-        "nav": 2.807
+        "nav": 2.807,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-13",
-        "nav": 2.764
+        "nav": 2.764,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-14",
-        "nav": 2.762
+        "nav": 2.762,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-15",
-        "nav": 2.771
+        "nav": 2.771,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-16",
-        "nav": 2.785
+        "nav": 2.785,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-19",
-        "nav": 2.821
+        "nav": 2.821,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-20",
-        "nav": 2.799
+        "nav": 2.799,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-21",
-        "nav": 2.741
+        "nav": 2.741,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-22",
-        "nav": 2.729
+        "nav": 2.729,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-23",
-        "nav": 2.784
+        "nav": 2.784,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-26",
-        "nav": 2.808
+        "nav": 2.808,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-27",
-        "nav": 2.79
+        "nav": 2.79,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-28",
-        "nav": 2.767
+        "nav": 2.767,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-29",
-        "nav": 2.805
+        "nav": 2.805,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-30",
-        "nav": 2.871
+        "nav": 2.871,
+        "dividend_per_share": 0.0
+      }
+    ],
+    "nav_total_return": [
+      {
+        "date": "2026-10-08",
+        "total_return_index": 2.7610000000000365
+      },
+      {
+        "date": "2026-10-09",
+        "total_return_index": 2.7880000000000367
+      },
+      {
+        "date": "2026-10-12",
+        "total_return_index": 2.807000000000037
+      },
+      {
+        "date": "2026-10-13",
+        "total_return_index": 2.764000000000036
+      },
+      {
+        "date": "2026-10-14",
+        "total_return_index": 2.7620000000000364
+      },
+      {
+        "date": "2026-10-15",
+        "total_return_index": 2.7710000000000368
+      },
+      {
+        "date": "2026-10-16",
+        "total_return_index": 2.7850000000000374
+      },
+      {
+        "date": "2026-10-19",
+        "total_return_index": 2.821000000000038
+      },
+      {
+        "date": "2026-10-20",
+        "total_return_index": 2.7990000000000372
+      },
+      {
+        "date": "2026-10-21",
+        "total_return_index": 2.7410000000000365
+      },
+      {
+        "date": "2026-10-22",
+        "total_return_index": 2.7290000000000365
+      },
+      {
+        "date": "2026-10-23",
+        "total_return_index": 2.7840000000000367
+      },
+      {
+        "date": "2026-10-26",
+        "total_return_index": 2.8080000000000367
+      },
+      {
+        "date": "2026-10-27",
+        "total_return_index": 2.7900000000000365
+      },
+      {
+        "date": "2026-10-28",
+        "total_return_index": 2.767000000000036
+      },
+      {
+        "date": "2026-10-29",
+        "total_return_index": 2.805000000000037
+      },
+      {
+        "date": "2026-10-30",
+        "total_return_index": 2.8710000000000377
       }
     ],
     "holdings": [
@@ -301,6 +237,244 @@
     ],
     "disclosure_quarter": "2026年1季度股票投资明细"
   },
+  "003095": {
+    "fund": {
+      "code": "003095",
+      "name": "中欧医疗健康混合",
+      "theme": "医药生物"
+    },
+    "month": "2026-10",
+    "nav_series": [
+      {
+        "date": "2026-10-08",
+        "nav": 1.9345,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-09",
+        "nav": 1.9272,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-12",
+        "nav": 1.8949,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-13",
+        "nav": 1.8698,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-14",
+        "nav": 1.8432,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-15",
+        "nav": 1.8355,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-16",
+        "nav": 1.7966,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-19",
+        "nav": 1.8235,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-20",
+        "nav": 1.8652,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-21",
+        "nav": 1.859,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-22",
+        "nav": 1.8053,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-23",
+        "nav": 1.8453,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-26",
+        "nav": 1.8348,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-27",
+        "nav": 1.7548,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-28",
+        "nav": 1.7936,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-29",
+        "nav": 1.7983,
+        "dividend_per_share": 0.0
+      },
+      {
+        "date": "2026-10-30",
+        "nav": 1.796,
+        "dividend_per_share": 0.0
+      }
+    ],
+    "nav_total_return": [
+      {
+        "date": "2026-10-08",
+        "total_return_index": 2.1305936367384226
+      },
+      {
+        "date": "2026-10-09",
+        "total_return_index": 2.1225536607507305
+      },
+      {
+        "date": "2026-10-12",
+        "total_return_index": 2.086979520421627
+      },
+      {
+        "date": "2026-10-13",
+        "total_return_index": 2.0593352194228496
+      },
+      {
+        "date": "2026-10-14",
+        "total_return_index": 2.030038868563588
+      },
+      {
+        "date": "2026-10-15",
+        "total_return_index": 2.021558345946433
+      },
+      {
+        "date": "2026-10-16",
+        "total_return_index": 1.9787151862311967
+      },
+      {
+        "date": "2026-10-19",
+        "total_return_index": 2.0083419470625556
+      },
+      {
+        "date": "2026-10-20",
+        "total_return_index": 2.05426893318403
+      },
+      {
+        "date": "2026-10-21",
+        "total_return_index": 2.04744046042736
+      },
+      {
+        "date": "2026-10-22",
+        "total_return_index": 1.9882970754220082
+      },
+      {
+        "date": "2026-10-23",
+        "total_return_index": 2.0323517383682663
+      },
+      {
+        "date": "2026-10-26",
+        "total_return_index": 2.0207873893448736
+      },
+      {
+        "date": "2026-10-27",
+        "total_return_index": 1.9326780634523566
+      },
+      {
+        "date": "2026-10-28",
+        "total_return_index": 1.9754110865102275
+      },
+      {
+        "date": "2026-10-29",
+        "total_return_index": 1.980587509406413
+      },
+      {
+        "date": "2026-10-30",
+        "total_return_index": 1.9780543662870032
+      }
+    ],
+    "holdings": [
+      {
+        "code": "603259",
+        "name": "药明康德",
+        "weight": 0.1008,
+        "industry": "",
+        "quarter": "2026年1季度股票投资明细"
+      },
+      {
+        "code": "600276",
+        "name": "恒瑞医药",
+        "weight": 0.0974,
+        "industry": "",
+        "quarter": "2026年1季度股票投资明细"
+      },
+      {
+        "code": "300759",
+        "name": "康龙化成",
+        "weight": 0.0756,
+        "industry": "",
+        "quarter": "2026年1季度股票投资明细"
+      },
+      {
+        "code": "002821",
+        "name": "凯莱英",
+        "weight": 0.0715,
+        "industry": "",
+        "quarter": "2026年1季度股票投资明细"
+      },
+      {
+        "code": "002653",
+        "name": "海思科",
+        "weight": 0.0647,
+        "industry": "",
+        "quarter": "2026年1季度股票投资明细"
+      },
+      {
+        "code": "688506",
+        "name": "百利天恒",
+        "weight": 0.0637,
+        "industry": "",
+        "quarter": "2026年1季度股票投资明细"
+      },
+      {
+        "code": "002422",
+        "name": "科伦药业",
+        "weight": 0.0576,
+        "industry": "",
+        "quarter": "2026年1季度股票投资明细"
+      },
+      {
+        "code": "002294",
+        "name": "信立泰",
+        "weight": 0.0572,
+        "industry": "",
+        "quarter": "2026年1季度股票投资明细"
+      },
+      {
+        "code": "300347",
+        "name": "泰格医药",
+        "weight": 0.0568,
+        "industry": "",
+        "quarter": "2026年1季度股票投资明细"
+      },
+      {
+        "code": "688578",
+        "name": "艾力斯",
+        "weight": 0.0316,
+        "industry": "",
+        "quarter": "2026年1季度股票投资明细"
+      }
+    ],
+    "disclosure_quarter": "2026年1季度股票投资明细"
+  },
   "519674": {
     "fund": {
       "code": "519674",
@@ -311,71 +485,158 @@
     "nav_series": [
       {
         "date": "2026-10-08",
-        "nav": 10.6874
+        "nav": 10.6874,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-09",
-        "nav": 10.6848
+        "nav": 10.6848,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-12",
-        "nav": 10.4232
+        "nav": 10.4232,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-13",
-        "nav": 10.3929
+        "nav": 10.3929,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-14",
-        "nav": 10.1669
+        "nav": 10.1669,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-15",
-        "nav": 9.9761
+        "nav": 9.9761,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-16",
-        "nav": 9.9635
+        "nav": 9.9635,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-19",
-        "nav": 9.7273
+        "nav": 9.7273,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-20",
-        "nav": 9.844
+        "nav": 9.844,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-21",
-        "nav": 9.8778
+        "nav": 9.8778,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-22",
-        "nav": 9.6108
+        "nav": 9.6108,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-23",
-        "nav": 9.9027
+        "nav": 9.9027,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-26",
-        "nav": 9.7579
+        "nav": 9.7579,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-27",
-        "nav": 9.3484
+        "nav": 9.3484,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-28",
-        "nav": 9.7873
+        "nav": 9.7873,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-29",
-        "nav": 9.4856
+        "nav": 9.4856,
+        "dividend_per_share": 0.0
       },
       {
         "date": "2026-10-30",
-        "nav": 9.0152
+        "nav": 9.0152,
+        "dividend_per_share": 0.0
+      }
+    ],
+    "nav_total_return": [
+      {
+        "date": "2026-10-08",
+        "total_return_index": 10.687399999999839
+      },
+      {
+        "date": "2026-10-09",
+        "total_return_index": 10.684799999999838
+      },
+      {
+        "date": "2026-10-12",
+        "total_return_index": 10.423199999999841
+      },
+      {
+        "date": "2026-10-13",
+        "total_return_index": 10.392899999999841
+      },
+      {
+        "date": "2026-10-14",
+        "total_return_index": 10.166899999999846
+      },
+      {
+        "date": "2026-10-15",
+        "total_return_index": 9.976099999999848
+      },
+      {
+        "date": "2026-10-16",
+        "total_return_index": 9.963499999999847
+      },
+      {
+        "date": "2026-10-19",
+        "total_return_index": 9.72729999999985
+      },
+      {
+        "date": "2026-10-20",
+        "total_return_index": 9.843999999999848
+      },
+      {
+        "date": "2026-10-21",
+        "total_return_index": 9.87779999999985
+      },
+      {
+        "date": "2026-10-22",
+        "total_return_index": 9.610799999999852
+      },
+      {
+        "date": "2026-10-23",
+        "total_return_index": 9.902699999999848
+      },
+      {
+        "date": "2026-10-26",
+        "total_return_index": 9.75789999999985
+      },
+      {
+        "date": "2026-10-27",
+        "total_return_index": 9.348399999999858
+      },
+      {
+        "date": "2026-10-28",
+        "total_return_index": 9.787299999999853
+      },
+      {
+        "date": "2026-10-29",
+        "total_return_index": 9.485599999999858
+      },
+      {
+        "date": "2026-10-30",
+        "total_return_index": 9.015199999999865
       }
     ],
     "holdings": [
