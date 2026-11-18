@@ -1,4 +1,4 @@
-.PHONY: help setup dev backend frontend check lint typecheck test test-backend test-frontend build probe clean
+.PHONY: help setup dev backend frontend check lint typecheck test test-backend test-frontend build format probe clean
 
 VENV := .venv
 # 允许用 make check PY=/path/to/python 指定解释器（CI 与特殊环境用）
@@ -12,6 +12,7 @@ help:
 	@echo "make backend  只启动后端"
 	@echo "make frontend 只启动前端"
 	@echo "make check    类型检查 + 全部测试 + 前端构建（提 PR 前必跑）"
+	@echo "make format   一键格式化并自动修复可修复的问题（CI 报格式错时用）"
 	@echo "make probe    用真实网络验证数据源（不进 CI）"
 
 setup: $(VENV) web/node_modules
@@ -53,6 +54,10 @@ lint:
 
 typecheck:
 	$(PY) -m ruff check .
+
+format:
+	$(PY) -m ruff format .
+	$(PY) -m ruff check . --fix
 
 test: test-backend test-frontend
 

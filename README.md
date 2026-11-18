@@ -25,7 +25,7 @@ bash scripts/install-hooks.sh
 
 装完直接推 `main` 会被本地拦截。
 
-服务端也已启用分支保护（`protect-main` 规则集）：禁止删除 `main`、禁止强推、只允许 squash 合并，并且**必须由组长 approve**（CODEOWNERS 覆盖全仓库，其他人的 approve 不计入）。本地钩子只是提前一步拦住手滑，真正决定改动能否进主干的是 GitHub 那边。
+服务端也已启用分支保护（`protect-main` 规则集）：禁止删除 `main`、禁止强推、只允许 squash 合并、CI 必须全绿。**核心代码、测试与基建必须由组长 approve**；插件目录的新功能只需任意 1 人 approve 即可合并。本地钩子只是提前一步拦住手滑，真正决定改动能否进主干的是 GitHub 那边。
 
 组长（仓库管理员）留了紧急绕过通道，仅用于主干坏掉必须立刻修的情况，事后要在群里说明。
 
