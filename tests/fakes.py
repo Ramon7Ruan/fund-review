@@ -35,7 +35,16 @@ class FakeService:
             meta,
         )
 
-    def get_holdings(self, code: str, year: str) -> tuple[list[dict], dict]:
+    def get_nav_adjusted(self, code: str, month: str | None = None) -> tuple[list[dict], dict]:
+        rows, meta = self.get_nav(code, month)
+        return (
+            [{"date": p["date"], "total_return_index": p["nav"]} for p in rows],
+            {**meta, "dividend_source": "fake", "warnings": []},
+        )
+
+    def get_holdings(
+        self, code: str, year: str, month: str | None = None
+    ) -> tuple[list[dict], dict]:
         quarter = f"{year}年1季度股票投资明细"
         return (
             [{"code": "600519", "name": "贵州茅台", "weight": 0.1, "quarter": quarter}],
