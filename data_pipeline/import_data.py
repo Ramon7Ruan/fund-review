@@ -32,7 +32,7 @@ def main() -> None:
         elif args.command == "sync-nav":
             result = service.sync_nav(args.fund_code)
         elif args.command == "adjusted-nav":
-            result = total_return_index(service.fund_store.nav_series(args.fund_code))
+            result = total_return_index(service.fund_store.nav_points(args.fund_code))
         else:
             result = service.month_snapshots(args.fund_code, args.month)
         print(json.dumps(result, ensure_ascii=False, indent=2))

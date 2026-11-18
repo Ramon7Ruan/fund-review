@@ -60,7 +60,7 @@ def test_dividend_reinvestment_and_duplicate_nav(tmp_path) -> None:
     store = FundDataStore(tmp_path / "fund.db")
     assert store.import_nav_csv(NAV) == {"imported": 3, "unchanged": 0}
     assert store.import_nav_csv(NAV) == {"imported": 0, "unchanged": 3}
-    series = total_return_index(store.nav_series("110022"))
+    series = total_return_index(store.nav_points("110022"))
     assert [row["total_return_index"] for row in series] == pytest.approx([1.0, 1.1, 1.21])
     assert series[1]["unit_nav"] == 0.9
     assert series[1]["dividend_per_share"] == 0.2
@@ -98,7 +98,7 @@ def test_sync_nav_combines_history_and_ex_dividend_events(tmp_path, monkeypatch)
     )
     assert service.sync_nav("110022")["imported"] == 3
     assert service.sync_nav("110022")["unchanged"] == 3
-    assert total_return_index(store.nav_series("110022"))[-1][
+    assert total_return_index(store.nav_points("110022"))[-1][
         "total_return_index"
     ] == pytest.approx(1.21)
     service.close()

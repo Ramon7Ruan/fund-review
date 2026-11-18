@@ -11,21 +11,23 @@ from engine.runtime import AlgorithmPlugin, PluginContext, PluginResult
 
 
 def run(ctx: PluginContext) -> PluginResult:
-    raw = ctx.data.get("nav_series") or []
-    points = [NavPoint(date=str(item["date"]), nav=float(item["nav"])) for item in raw]
+    adjusted = ctx.data.get("nav_total_return") or []
+    raw = adjusted or ctx.data.get("nav_series") or []
+    field = "total_return_index" if adjusted else "nav"
+    points = [NavPoint(date=str(item["date"]), nav=float(item[field])) for item in raw]
     summary = compute_interval_return(points)
     return PluginResult(
         status="ready",
         data={
             "start_date": summary.start_date,
             "end_date": summary.end_date,
-            "start_nav": summary.start_nav,
-            "end_nav": summary.end_nav,
+            "start_nav": (ctx.data.get("nav_series") or [{}])[0].get("nav", summary.start_nav),
+            "end_nav": (ctx.data.get("nav_series") or [{}])[-1].get("nav", summary.end_nav),
             "period_return": summary.period_return,
             "max_drawdown": summary.max_drawdown,
             "points": summary.points,
         },
-        notes=("区间收益按单位净值计算，未做分红复权",),
+        notes=("区间收益按分红复权指数计算" if adjusted else "复权数据缺失，按单位净值计算",),
     )
 
 

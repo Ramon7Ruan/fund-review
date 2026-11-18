@@ -15,6 +15,7 @@ from data_pipeline.fallback import SourceChain
 from data_pipeline.fund_store import FundDataStore
 from data_pipeline.sources import akshare_source, danjuan_fund, eastmoney_dividends
 from data_pipeline.sources.akshare_source import SourceUnavailable
+from engine.returns.dividend import total_return_index
 
 NAV_TTL_SECONDS = 6 * 3600
 HOLDINGS_TTL_SECONDS = 7 * 24 * 3600
@@ -79,7 +80,18 @@ class DataService:
         cached = self.cache.get(key)
         if cached is not None:
             return {**cached, "cached": True}
-        info = akshare_source.fetch_fund_basic(code)
+        try:
+            info = akshare_source.fetch_fund_basic(code)
+        except SourceUnavailable:
+            if not self.fund_store.nav_series(code):
+                raise
+            info = {
+                "code": code,
+                "name": f"基金 {code}",
+                "type": "",
+                "company": "",
+                "source": "local_import",
+            }
         self.cache.set(key, info, ttl_seconds=HOLDINGS_TTL_SECONDS)
         return {**info, "cached": False}
 
@@ -96,11 +108,18 @@ class DataService:
         attempts: list[str] = []
 
         if series is None:
-            outcome = self.nav_chain.fetch(code)
-            series = outcome.data
-            source = outcome.source
-            attempts = outcome.attempts
-            self.cache.set(key, series, ttl_seconds=NAV_TTL_SECONDS)
+            try:
+                outcome = self.nav_chain.fetch(code)
+                series = outcome.data
+                source = outcome.source
+                attempts = outcome.attempts
+                self.cache.set(key, series, ttl_seconds=NAV_TTL_SECONDS)
+            except SourceUnavailable as exc:
+                attempts = [str(exc)]
+                series = self.fund_store.nav_series(code)
+                if not series:
+                    raise
+                source = "local_import"
 
         filtered = series
         if month:
@@ -113,11 +132,56 @@ class DataService:
             "month_points": len(filtered) if month else len(series),
             "attempts": attempts,
         }
+        if source == "local_import":
+            meta.update(fallback=True, as_of=series[-1]["date"])
         return filtered, meta
+
+    def get_nav_adjusted(
+        self, code: str, month: str | None = None
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """Compute the total-return index over the full history, then select a month."""
+        nav, nav_meta = self.get_nav(code)
+        warnings: list[str] = []
+        dividend_source = "eastmoney"
+        if nav_meta["source"] == "local_import":
+            dividends = {
+                p["date"]: p["dividend_per_share"] for p in self.fund_store.nav_points(code)
+            }
+            dividend_source = "local_import"
+        else:
+            try:
+                dividends = {
+                    p["date"]: p["dividend_per_share"]
+                    for p in eastmoney_dividends.fetch_fund_dividends(code)
+                }
+                missing = set(dividends) - {p["date"] for p in nav}
+                if missing:
+                    raise SourceUnavailable(f"除息日缺少对应净值：{sorted(missing)[0]}")
+            except SourceUnavailable as exc:
+                dividends = {}
+                dividend_source = "unavailable"
+                warnings.append(f"分红数据不可用，本次未做复权：{exc}")
+        points = [
+            {
+                "date": p["date"],
+                "unit_nav": p["nav"],
+                "dividend_per_share": dividends.get(p["date"], 0.0),
+            }
+            for p in nav
+        ]
+        result = total_return_index(points)
+        if month:
+            result = [p for p in result if p["date"].startswith(month)]
+        return (
+            [{"date": p["date"], "total_return_index": p["total_return_index"]} for p in result],
+            {**nav_meta, "dividend_source": dividend_source, "warnings": warnings},
+        )
 
     # ---------- 持仓 ----------
 
-    def get_holdings(self, code: str, year: str) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    def get_holdings(
+        self, code: str, year: str, month: str | None = None
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
         key = f"holdings:{code}:{year}"
         rows = self.cache.get(key)
         cached = rows is not None
@@ -125,14 +189,20 @@ class DataService:
         attempts: list[str] = []
 
         if rows is None:
-            outcome = self.holdings_chain.fetch(code, year)
-            rows = outcome.data
-            source = outcome.source
-            attempts = outcome.attempts
-            self.cache.set(key, rows, ttl_seconds=HOLDINGS_TTL_SECONDS)
+            try:
+                outcome = self.holdings_chain.fetch(code, year)
+                rows = outcome.data
+                source = outcome.source
+                attempts = outcome.attempts
+                self.cache.set(key, rows, ttl_seconds=HOLDINGS_TTL_SECONDS)
+            except SourceUnavailable as exc:
+                attempts = [str(exc)]
+                snapshot = self.month_snapshots(code, month or f"{year}-12")["end"]
+                rows = snapshot["positions"] if snapshot else []
+                source = "local_import" if rows else "unavailable"
 
-        latest_quarter = rows[0]["quarter"] if rows else ""
-        latest = [r for r in rows if r["quarter"] == latest_quarter]
+        latest_quarter = rows[0].get("quarter", "") if rows else ""
+        latest = [r for r in rows if r.get("quarter", "") == latest_quarter]
         meta = {
             "source": source,
             "cached": cached,
@@ -140,6 +210,8 @@ class DataService:
             "count": len(latest),
             "attempts": attempts,
         }
+        if source == "local_import":
+            meta.update(fallback=True, as_of=snapshot["as_of"])
         return latest, meta
 
     def close(self) -> None:

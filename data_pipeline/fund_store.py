@@ -195,6 +195,14 @@ class FundDataStore:
 
     def nav_series(self, fund_code: str) -> list[dict[str, Any]]:
         rows = self.conn.execute(
+            "SELECT date, unit_nav AS nav FROM fund_nav_point WHERE fund_code=? ORDER BY date",
+            (_code(fund_code),),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+    def nav_points(self, fund_code: str) -> list[dict[str, Any]]:
+        """Internal points retain dividends for total-return calculation."""
+        rows = self.conn.execute(
             "SELECT date, unit_nav, dividend_per_share FROM fund_nav_point "
             "WHERE fund_code=? ORDER BY date",
             (_code(fund_code),),

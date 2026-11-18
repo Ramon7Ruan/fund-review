@@ -28,7 +28,10 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
     month = payload.month
     year = month[:4]
 
-    fund = service.get_fund(payload.fund_code)
+    try:
+        fund = service.get_fund(payload.fund_code)
+    except SourceUnavailable as exc:
+        raise HTTPException(status_code=503, detail=f"基金信息不可用：{exc}") from exc
 
     try:
         nav_series, nav_meta = service.get_nav(payload.fund_code, month)
@@ -51,10 +54,13 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
             + "；".join(nav_report.errors),
         )
 
+    nav_total_return, tr_meta = service.get_nav_adjusted(payload.fund_code, month)
+    errors.extend(tr_meta.get("warnings", []))
+
     holdings: list[dict] = []
     holdings_meta: dict = {}
     try:
-        holdings, holdings_meta = service.get_holdings(payload.fund_code, year)
+        holdings, holdings_meta = service.get_holdings(payload.fund_code, year, month)
     except SourceUnavailable as exc:
         errors.append(f"持仓数据不可用：{exc}")
 
@@ -68,6 +74,7 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
         month=month,
         data={
             "nav_series": nav_series,
+            "nav_total_return": nav_total_return,
             "holdings": holdings,
             "quotes": {},
             "benchmark_returns": {},
@@ -94,7 +101,7 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
             "status": result.status,
             "title": meta["title"],
             "data": dict(result.data),
-            "notes": list(result.notes),
+            "notes": [*result.notes, *tr_meta.get("warnings", [])],
             "error": None,
         }
 
@@ -106,5 +113,5 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
         results=results,
         plugins=registry.describe(),
         errors=errors,
-        meta={"nav": nav_meta, "holdings": holdings_meta},
+        meta={"nav": nav_meta, "nav_total_return": tr_meta, "holdings": holdings_meta},
     )
