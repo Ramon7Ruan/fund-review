@@ -33,3 +33,29 @@ class WeightDriftResult:
     start_weights: dict[str, float] = field(default_factory=dict)
     end_weights: dict[str, float] = field(default_factory=dict)
     residual_weight: float = 0.0
+
+
+@dataclass(frozen=True)
+class PortfolioContribution:
+    """单只基金对组合收益的贡献。"""
+
+    fund_code: str
+    weight: float
+    period_return: float
+    contribution: float
+
+
+@dataclass(frozen=True)
+class PortfolioReturn:
+    """组合收益结果。
+
+    对账：Σ contributions.contribution + cash_weight × 0 + residual_return = total_return
+    """
+
+    month: str = ""
+    total_return: float = 0.0
+    contributions: tuple[PortfolioContribution, ...] = ()
+    cash_weight: float = 0.0
+    residual_return: float = 0.0
+    notes: tuple[str, ...] = ()
+    segments: tuple[dict, ...] = ()  # 分段明细（v0.2 用）
