@@ -8,9 +8,7 @@ from engine.returns.core import compute_segmented_portfolio_return
 
 
 def _nav(dates: list[str], values: list[float]) -> list[dict]:
-    return [
-        {"date": d, "total_return_index": v} for d, v in zip(dates, values, strict=True)
-    ]
+    return [{"date": d, "total_return_index": v} for d, v in zip(dates, values, strict=True)]
 
 
 def test_single_snapshot_single_segment() -> None:

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from typing import Any
 
 from engine.returns.types import (
     NavPoint,
@@ -111,9 +112,7 @@ def compute_portfolio_return(
             notes.append(f"{code} 当月复权序列不足两点，收益记 0")
             period_return = 0.0
         else:
-            period_return = (
-                rows[-1]["total_return_index"] / rows[0]["total_return_index"] - 1.0
-            )
+            period_return = rows[-1]["total_return_index"] / rows[0]["total_return_index"] - 1.0
         contribution = weight * period_return
         contributions.append(
             PortfolioContribution(
