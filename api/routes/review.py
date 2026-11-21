@@ -69,6 +69,48 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
     errors.extend(holdings_report.errors)
     errors.extend(holdings_report.warnings)
 
+    # 归因所需数据：个股行情、行业映射、行业指数收益。
+    # 任一环节失败只记录并降级，不阻塞其他插件。
+    codes = [str(h["code"]) for h in holdings]
+    quotes: dict[str, list[dict]] = {}
+    quotes_meta: dict = {}
+    industry_map: dict[str, str] = {}
+    industry_meta: dict = {}
+    benchmark_returns: dict[str, float] = {}
+    benchmark_meta: dict = {}
+
+    if codes:
+        try:
+            quotes, quotes_meta = service.get_quotes(codes, month)
+            errors.extend(quotes_meta.get("missing", []))
+        except SourceUnavailable as exc:
+            errors.append(f"个股行情不可用：{exc}")
+
+        try:
+            industry_map, industry_meta = service.get_industry_map(codes)
+            for row in holdings:
+                row["industry"] = industry_map.get(str(row["code"]), row.get("industry", ""))
+        except SourceUnavailable as exc:
+            errors.append(f"行业映射不可用：{exc}")
+
+        try:
+            benchmark_returns, benchmark_meta = service.get_industry_returns(
+                month, sorted(set(industry_map.values()))
+            )
+            errors.extend(benchmark_meta.get("missing", []))
+        except SourceUnavailable as exc:
+            errors.append(f"行业指数收益不可用：{exc}")
+
+    events: list[dict] = []
+    events_meta: dict = {}
+    try:
+        events, events_meta = service.get_events(
+            str(fund.get("code", payload.fund_code)), codes, month
+        )
+        errors.extend(events_meta.get("missing", []))
+    except SourceUnavailable as exc:
+        errors.append(f"事件数据不可用：{exc}")
+
     ctx = PluginContext(
         fund=fund,
         month=month,
@@ -76,8 +118,11 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
             "nav_series": nav_series,
             "nav_total_return": nav_total_return,
             "holdings": holdings,
-            "quotes": {},
-            "benchmark_returns": {},
+            "quotes": quotes,
+            "industry_map": industry_map,
+            "benchmark_returns": benchmark_returns,
+            "quote_adjust": quotes_meta.get("adjust", "none"),
+            "events": events,
         },
     )
 
@@ -113,5 +158,13 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
         results=results,
         plugins=registry.describe(),
         errors=errors,
-        meta={"nav": nav_meta, "nav_total_return": tr_meta, "holdings": holdings_meta},
+        meta={
+            "nav": nav_meta,
+            "nav_total_return": tr_meta,
+            "holdings": holdings_meta,
+            "quotes": quotes_meta,
+            "industry_map": industry_meta,
+            "benchmark_returns": benchmark_meta,
+            "events": events_meta,
+        },
     )
