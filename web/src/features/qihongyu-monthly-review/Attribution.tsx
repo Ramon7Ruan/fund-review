@@ -606,7 +606,7 @@ export default function Panel({ result, month }: PanelProps) {
     return (
       <EmptyState
         title="本月收益拆解尚未返回数据"
-        hint="请在上方输入基金代码与月份后重新生成；拆解需要持仓披露、个股行情与行业映射三类数据。"
+        hint="拆解数据由归因卡（后端 attribution.brinson）提供；它返回结果后，这里的瀑布、象限、行业对照与收益构成会直接显示。"
       />
     );
   }

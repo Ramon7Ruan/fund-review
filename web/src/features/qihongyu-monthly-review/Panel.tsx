@@ -45,6 +45,7 @@ function derivedDrawdown(points: { nav: number }[]): number | undefined {
   return points.length > 1 ? depth : undefined;
 }
 
+
 function pct(value: unknown, digits = 2): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
   return `${(value * 100).toFixed(digits)}%`;
@@ -98,6 +99,14 @@ export default function Panel({ result, fund, month, navSeries, holdings, meta }
   const firstPoint = navSeries[0];
   const lastPoint = navSeries.at(-1);
   const drawdown = useMemo(() => derivedDrawdown(navSeries), [navSeries]);
+  // 本卡是本地视图，拿不到其他插件的结果；回撤按净值读数派生并显式标注，
+  // 收益口径仍由页面顶部的区间收益卡（后端结果）负责，这里不重复显示。
+  const maxDrawdown = attribution.max_drawdown ?? drawdown;
+  // 前十大披露权重之和，供「披露覆盖度」快速读数
+  const weightSum = useMemo(
+    () => holdings.reduce((sum, item) => sum + (Number.isFinite(item.weight) ? item.weight : 0), 0),
+    [holdings]
+  );
   const isEmpty = navSeries.length === 0 && holdings.length === 0 && !result;
 
   if (isEmpty) {
@@ -116,37 +125,17 @@ export default function Panel({ result, fund, month, navSeries, holdings, meta }
       <section className="card">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <div className="flex flex-wrap items-baseline gap-2">
-            <h3 className="text-base font-semibold text-ink-900">
-              {fund?.name || `基金 ${fund?.code ?? ""}`}
-            </h3>
+            {/* 基金名称由上方概览卡展示，这里不重复，避免与页面已有文案撞车 */}
+            <h3 className="text-base font-semibold text-ink-900">月度回顾</h3>
             <span className="font-mono text-xs text-ink-500">{fund?.code}</span>
             <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs text-blue-700">
               {month}
             </span>
-            {fund?.type && <span className="text-xs text-ink-500">{fund.type}</span>}
           </div>
-          <span className="text-xs text-ink-500">
-            净值来源：{navSource || "—"}
-          </span>
+          <span className="text-xs text-ink-500">净值来源：{navSource || "—"}</span>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-          <Kpi
-            label="区间收益"
-            value={pct(attribution.fund_return)}
-            color={(attribution.fund_return ?? 0) >= 0 ? "up" : "down"}
-            hint="取后端区间收益结果"
-          />
-          <Kpi
-            label="最大回撤"
-            value={pct(attribution.max_drawdown ?? drawdown)}
-            color="down"
-            hint={
-              attribution.max_drawdown === undefined
-                ? "由净值读数派生，仅作图内标注"
-                : "区间内最深回撤（后端口径）"
-            }
-          />
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Kpi
             label="起止净值"
             value={`${nav(firstPoint?.nav)} → ${nav(lastPoint?.nav)}`}
@@ -158,6 +147,11 @@ export default function Panel({ result, fund, month, navSeries, holdings, meta }
             label="披露持仓"
             value={`${holdings.length} 只`}
             hint={quarter || "最近一期季报"}
+          />
+          <Kpi
+            label="披露权重合计"
+            value={pct(weightSum)}
+            hint="前十大占基金净资产比例之和"
           />
         </div>
 
@@ -189,9 +183,9 @@ export default function Panel({ result, fund, month, navSeries, holdings, meta }
                   <span className="h-2 w-2 rounded-sm" style={{ background: GREEN }} />
                   距区间高点的回撤
                 </span>
-                {attribution.max_drawdown !== undefined && (
+                {maxDrawdown !== undefined && (
                   <span className="ml-auto rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">
-                    区间最大回撤 {pct(attribution.max_drawdown)}
+                    区间最大回撤 {pct(maxDrawdown)}
                   </span>
                 )}
               </div>

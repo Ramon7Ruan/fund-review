@@ -93,6 +93,7 @@ describe("月度回顾视图插件", () => {
     expect(screen.getByTestId("waterfall-chart")).toBeInTheDocument();
     expect(screen.getByTestId("industry-compare-chart")).toBeInTheDocument();
     expect(screen.getAllByText("贵州茅台").length).toBeGreaterThan(0);
-    expect(screen.getByText(/不构成投资建议/)).toBeInTheDocument();
+    // 卡内与归因块各有一条免责声明，取任意一条即可
+    expect(screen.getAllByText(/不构成投资建议/).length).toBeGreaterThan(0);
   });
 });
