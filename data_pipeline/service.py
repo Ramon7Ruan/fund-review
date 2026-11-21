@@ -232,6 +232,164 @@ class DataService:
             meta.update(fallback=True, as_of=snapshot["as_of"])
         return latest, meta
 
+    # ---------- 归因：个股行情与申万行业 ----------
+
+    def get_quotes(
+        self, codes: list[str] | tuple[str, ...], month: str
+    ) -> tuple[dict[str, list[dict[str, Any]]], dict[str, Any]]:
+        """批量获取持仓个股当月日线。单只失败只记录，不阻塞其他股票。"""
+        wanted = {str(c).zfill(6) for c in codes}
+        result: dict[str, list[dict[str, Any]]] = {}
+        missing: list[str] = []
+        sources: set[str] = set()
+        cached_hits = 0
+
+        for code in sorted(wanted):
+            key = f"quotes:{code}:{month}"
+            bars = self.cache.get(key)
+            if bars is not None:
+                result[code] = bars
+                cached_hits += 1
+                continue
+            try:
+                bars, source = akshare_source.fetch_stock_bars(code, f"{month}-01", f"{month}-31")
+            except SourceUnavailable as exc:
+                missing.append(f"{code}：{exc}")
+                continue
+            month_bars = [b for b in bars if str(b["date"]).startswith(month)]
+            if not month_bars:
+                missing.append(f"{code}：{month} 无行情")
+                continue
+            result[code] = month_bars
+            sources.add(source)
+            self.cache.set(key, month_bars, ttl_seconds=NAV_TTL_SECONDS)
+
+        meta = {
+            "source": "akshare." + ",".join(sorted(sources)) if sources else "cache",
+            "adjust": "none",
+            "requested": len(wanted),
+            "count": len(result),
+            "cached": cached_hits == len(result) and not missing,
+            "missing": missing,
+        }
+        return result, meta
+
+    def get_industry_map(
+        self, codes: list[str] | tuple[str, ...]
+    ) -> tuple[dict[str, str], dict[str, Any]]:
+        """个股 → 申万一级行业。全市场映射缓存 7 天，首次构建需遍历 31 个行业。"""
+        key = "industry:map:v1"
+        mapping: dict[str, str] | None = self.cache.get(key)
+        attempts: list[str] = []
+
+        if mapping is None:
+            mapping = {}
+            for item in akshare_source.fetch_sw_industries():
+                try:
+                    members = akshare_source.fetch_sw_constituents(item["sw_code"])
+                except SourceUnavailable as exc:
+                    attempts.append(f"{item['industry']}：{exc}")
+                    continue
+                for member in members:
+                    mapping.setdefault(member["code"], item["industry"])
+            if not mapping:
+                raise SourceUnavailable("申万成分股全部抓取失败，无法建立行业映射")
+            self.cache.set(key, mapping, ttl_seconds=HOLDINGS_TTL_SECONDS)
+
+        wanted = {str(c).zfill(6) for c in codes}
+        subset = {c: mapping[c] for c in sorted(wanted) if c in mapping}
+        meta = {
+            "source": "akshare.sw",
+            "requested": len(wanted),
+            "mapped": len(subset),
+            "unmapped": sorted(wanted - set(subset)),
+            "attempts": attempts,
+        }
+        return subset, meta
+
+    def get_industry_returns(
+        self, month: str, industries: list[str] | tuple[str, ...] | None = None
+    ) -> tuple[dict[str, float], dict[str, Any]]:
+        """申万一级行业指数区间收益 {industry: r}，用首末收盘比值。"""
+        listing_key = "industry:list:v1"
+        listing = self.cache.get(listing_key)
+        if listing is None:
+            listing = akshare_source.fetch_sw_industries()
+            self.cache.set(listing_key, listing, ttl_seconds=HOLDINGS_TTL_SECONDS)
+        code_by_name = {item["industry"]: item["sw_code"] for item in listing}
+
+        targets = list(industries) if industries is not None else sorted(code_by_name)
+        result: dict[str, float] = {}
+        missing: list[str] = []
+        for name in targets:
+            sw_code = code_by_name.get(name)
+            if not sw_code:
+                missing.append(f"{name}：无对应申万代码")
+                continue
+            key = f"industry:return:{sw_code}:{month}"
+            cached = self.cache.get(key)
+            if cached is not None:
+                result[name] = cached
+                continue
+            try:
+                bars = akshare_source.fetch_sw_index_bars(sw_code, f"{month}-01", f"{month}-31")
+            except SourceUnavailable as exc:
+                missing.append(f"{name}：{exc}")
+                continue
+            if len(bars) < 2:
+                missing.append(f"{name}：有效点不足两点")
+                continue
+            value = round(bars[-1]["close"] / bars[0]["close"] - 1.0, 8)
+            result[name] = value
+            self.cache.set(key, value, ttl_seconds=NAV_TTL_SECONDS)
+
+        return result, {
+            "source": "akshare.sw",
+            "count": len(result),
+            "missing": missing,
+            "adjust": "none",
+        }
+
+    def get_events(
+        self, fund_code: str, holding_codes: list[str] | tuple[str, ...], month: str
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """抓取基金自身与披露持仓个股的当月公告。
+
+        数据层只负责抓取与归一化；是否展示由 engine.attribution.events 的
+        四条准入规则决定，抓到的原始公告不直接等同于可展示事件。
+        """
+        key = f"events:{fund_code}:{month}"
+        cached = self.cache.get(key)
+        if cached is not None:
+            return cached, {"source": "cache", "cached": True, "count": len(cached), "missing": []}
+
+        compact = month.replace("-", "")
+        start, end = f"{compact}01", f"{compact}31"
+        raw: list[dict[str, Any]] = []
+        missing: list[str] = []
+
+        try:
+            raw.extend(akshare_source.fetch_fund_announcements(fund_code))
+        except SourceUnavailable as exc:
+            missing.append(f"基金公告：{exc}")
+
+        for code in sorted({str(c).zfill(6) for c in holding_codes}):
+            try:
+                raw.extend(akshare_source.fetch_stock_announcements(code, start, end))
+            except SourceUnavailable as exc:
+                missing.append(f"{code}：{exc}")
+
+        if not raw and missing:
+            raise SourceUnavailable("；".join(missing))
+
+        self.cache.set(key, raw, ttl_seconds=NAV_TTL_SECONDS)
+        return raw, {
+            "source": "akshare.eastmoney",
+            "cached": False,
+            "count": len(raw),
+            "missing": missing,
+        }
+
     def close(self) -> None:
         if self._fund_store is not None:
             self._fund_store.close()

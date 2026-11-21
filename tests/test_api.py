@@ -59,8 +59,10 @@ def test_review_partitions_results_by_plugin(client: TestClient) -> None:
     assert len(body["nav_series"]) == 2
     assert body["results"]["returns.interval"]["status"] == "ready"
     assert body["results"]["returns.interval"]["data"]["period_return"] == pytest.approx(0.1)
-    assert body["results"]["attribution.brinson"]["status"] == "stub"
-    assert body["results"]["attribution.brinson"]["notes"]
+    attribution = body["results"]["attribution.brinson"]
+    assert attribution["status"] == "ready"
+    assert attribution["data"]["items"]
+    assert attribution["notes"]
     assert body["results"]["example.momentum_summary"]["data"]["up_days"] == 1
     assert body["errors"] == []
 

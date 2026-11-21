@@ -18,7 +18,13 @@ class HoldingPosition:
 
 @dataclass(frozen=True)
 class ContributionItem:
-    """单只资产对基金区间收益的贡献。contribution = weight * period_return。"""
+    """单只资产对基金区间收益的贡献。contribution = weight * period_return。
+
+    industry_part / selection_part 为可选的第二层拆分：
+      industry_part  = weight * 行业区间收益
+      selection_part = weight * (个股区间收益 - 行业区间收益)
+    两者之和恒等于 contribution；行业收益缺失时为 None，不硬算。
+    """
 
     code: str
     name: str
@@ -26,6 +32,8 @@ class ContributionItem:
     weight: float
     period_return: float
     contribution: float
+    industry_part: float | None = None
+    selection_part: float | None = None
 
 
 @dataclass(frozen=True)
@@ -52,3 +60,5 @@ class AttributionResult:
     total_contribution: float = 0.0
     residual_return: float = 0.0
     notes: tuple[str, ...] = field(default_factory=tuple)
+    method: str = "holding_contribution+industry+selection"
+    coverage: float = 0.0
