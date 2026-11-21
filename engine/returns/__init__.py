@@ -3,7 +3,21 @@
 本包只做算术，不发起网络请求。数据由调用方准备好后传入。
 """
 
-from engine.returns.core import compute_interval_return, compute_weight_drift
-from engine.returns.types import NavPoint, ReturnSummary
+from engine.returns.core import (
+    compute_interval_return,
+    compute_portfolio_return,
+    compute_segmented_portfolio_return,
+    compute_weight_drift,
+)
+from engine.returns.types import NavPoint, PortfolioContribution, PortfolioReturn, ReturnSummary
 
-__all__ = ["NavPoint", "ReturnSummary", "compute_interval_return", "compute_weight_drift"]
+__all__ = [
+    "NavPoint",
+    "ReturnSummary",
+    "PortfolioContribution",
+    "PortfolioReturn",
+    "compute_interval_return",
+    "compute_weight_drift",
+    "compute_portfolio_return",
+    "compute_segmented_portfolio_return",
+]

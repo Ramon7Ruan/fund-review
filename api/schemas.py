@@ -12,6 +12,24 @@ class ReviewRequest(BaseModel):
     month: str = Field(..., pattern=r"^\d{4}-\d{2}$", description="YYYY-MM")
 
 
+class PortfolioRequest(BaseModel):
+    month: str = Field(..., pattern=r"^\d{4}-\d{2}$", description="YYYY-MM")
+    weights: dict[str, float] = Field(
+        ..., description="{基金代码: 期初权重}，权重和 ≤ 1，差额为现金"
+    )
+
+
+class PortfolioResponse(BaseModel):
+    month: str
+    total_return: float
+    contributions: list[dict[str, Any]] = Field(default_factory=list)
+    cash_weight: float = 0.0
+    residual_return: float = 0.0
+    notes: list[str] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+    meta: dict[str, Any] = Field(default_factory=dict)
+
+
 class PluginResultPayload(BaseModel):
     status: str
     title: str = ""
