@@ -39,9 +39,7 @@ def test_portfolio_review_ok(client: TestClient) -> None:
 
 
 def test_portfolio_empty_rejected(client: TestClient) -> None:
-    response = client.post(
-        "/api/portfolio/review", json={"month": "2026-10", "weights": {}}
-    )
+    response = client.post("/api/portfolio/review", json={"month": "2026-10", "weights": {}})
     assert response.status_code == 400
 
 
