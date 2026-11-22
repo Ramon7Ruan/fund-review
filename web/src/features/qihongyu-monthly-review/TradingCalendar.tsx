@@ -141,7 +141,7 @@ export function TradingCalendar({ points, month }: { points: NavPoint[]; month: 
             title={
               cell.ret === null
                 ? `${cell.date}：首个交易日，无前值可比较`
-                : `${cell.date}：${signedPct(cell.ret)}${cell.nav ? `，净值 ${cell.nav.toFixed(4)}` : ""}`
+                : `${cell.date}：${signedPct(cell.ret)}${cell.nav ? `，净值 ${cell.nav.toFixed(4)}` : ""}（单位净值未复权，除息日会出现跳变）`
             }
             style={cellStyle(cell.ret, maxAbs)}
             className="flex aspect-square flex-col items-center justify-center rounded-md border border-white/60 transition hover:ring-2 hover:ring-blue-200"
@@ -159,7 +159,9 @@ export function TradingCalendar({ points, month }: { points: NavPoint[]; month: 
       </div>
 
       <p className="mt-2 text-xs text-ink-500">
-        格内数字为当日涨跌幅（%），颜色深浅表示幅度大小；悬停可看当日净值。日涨跌由净值读数派生，口径数字仍取后端收益结果。
+        格内数字为当日涨跌幅（%），颜色深浅表示幅度大小；悬停可看当日净值。
+        日涨跌由<b className="font-medium text-ink-700">单位净值（未复权）</b>派生：除息日当天会因分红除权出现一次性下跳，
+        并不代表真实亏损，请结合页面顶部的区间收益（复权口径）一起看。
       </p>
     </div>
   );

@@ -77,11 +77,12 @@ describe("月度回顾视图插件", () => {
     expect(screen.queryByTestId("waterfall-chart")).not.toBeInTheDocument();
   });
 
-  it("有净值但没有拆解结果时，收益概况与净值卡片仍在，拆解降级为引导", () => {
+  it("有净值但没有拆解结果时，收益概况与净值卡片仍在，拆解降级为引导", async () => {
     render(<Panel {...baseProps} navSeries={navSeries} holdings={holdings} />);
     expect(screen.getByText("净值与回撤")).toBeInTheDocument();
     expect(screen.getByText("交易日历")).toBeInTheDocument();
-    expect(screen.getByText("本月收益拆解尚未返回数据")).toBeInTheDocument();
+    // 取数失败或没结果时，拆解块停在引导态
+    expect(await screen.findByText("本月收益拆解尚未返回数据")).toBeInTheDocument();
   });
 
   it("数据齐全时三块内容都可见，并带固定免责声明", () => {
@@ -93,7 +94,56 @@ describe("月度回顾视图插件", () => {
     expect(screen.getByTestId("waterfall-chart")).toBeInTheDocument();
     expect(screen.getByTestId("industry-compare-chart")).toBeInTheDocument();
     expect(screen.getAllByText("贵州茅台").length).toBeGreaterThan(0);
-    // 卡内与归因块各有一条免责声明，取任意一条即可
-    expect(screen.getAllByText(/不构成投资建议/).length).toBeGreaterThan(0);
+    // 免责声明只保留一条：卡片底部
+    expect(screen.getAllByText(/不构成投资建议/)).toHaveLength(1);
+  });
+
+  it("工作台没有传 result 时，自己按 results 键取回归因结果，拆解图可见", async () => {
+    // 模拟工作台的取数路径：manifest.id 是 local.monthly-review，
+    // results 里只有 attribution.brinson / returns.interval
+    const payload = {
+      fund: { code: "003095", name: "分红月样本" },
+      month: "2021-08",
+      nav_series: [
+        { date: "2021-08-09", nav: 3.13 },
+        { date: "2021-08-10", nav: 3.01 },
+        { date: "2021-08-11", nav: 3.05 },
+      ],
+      holdings,
+      plugins: [],
+      errors: [],
+      meta: {},
+      results: {
+        "attribution.brinson": readyResult,
+        "returns.interval": {
+          status: "ready" as const,
+          title: "区间收益",
+          notes: ["区间收益按分红复权指数计算"],
+          data: { period_return: 0.0123, max_drawdown: -0.1608 },
+        },
+      },
+    };
+    const fetchMock = vi.fn(() =>
+      Promise.resolve({ ok: true, json: () => Promise.resolve(payload) })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(
+      <Panel
+        {...baseProps}
+        fund={{ code: "003095", name: "分红月样本" }}
+        month="2021-08"
+        navSeries={payload.nav_series}
+        holdings={holdings}
+      />
+    );
+
+    expect(await screen.findByTestId("waterfall-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("industry-compare-chart")).toBeInTheDocument();
+    // 回撤数字取后端复权口径（-16.08%），不是单位净值派生的值
+    expect(screen.getByText(/区间最大回撤（复权口径）/)).toBeInTheDocument();
+    expect(screen.getByText(/-16\.08%/)).toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
   });
 });

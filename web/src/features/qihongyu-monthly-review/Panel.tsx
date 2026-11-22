@@ -7,8 +7,10 @@
  * 依赖说明：
  * - 月份选择与请求由工作台（pages/Workbench.tsx）统一完成，本卡只负责渲染，
  *   因此不重复放表单、不改路由、不碰 core/。
- * - 收益拆解取本插件对应后端结果（manifest.id = attribution.brinson），
- *   持仓取 /api/review 的 holdings，净值取 nav_series。
+ * - 工作台按 `data.results[manifest.id]` 取结果，而本卡 id 是 `local.monthly-review`，
+ *   与后端归因插件 id 不同，所以 `result` 通常为 undefined；归因与复权口径的区间收益
+ *   由 reviewExtras 用已有的 core/api.review 再取一次（不修改 core/）。
+ * - 持仓取 /api/review 的 holdings，净值取 nav_series（单位净值，未复权）。
  * - 空数据约定：任一模块缺数据只降级该模块并给引导，不报错、不白屏。
  * - 配色约定：红=上涨/正贡献，绿=下跌/负贡献，蓝=中性（净值、权重、零轴），不用黑色。
  */
@@ -21,15 +23,16 @@ import Attribution from "./Attribution";
 import Holdings from "./Holdings";
 import { NavDrawdownChart } from "./NavDrawdownChart";
 import { TradingCalendar } from "./TradingCalendar";
+import { useReviewExtras } from "./reviewExtras";
 
 const GREEN = "#059669";
 const BLUE = "#2563eb";
 
 const DISCLAIMER =
-  "以下内容为数据拆解与公开事件整理。事件与涨跌同时出现只代表时间上的相关性，不代表因果关系，不构成投资建议。";
+  "以上为已披露数据的统计拆解：数字按后端口径计算，缺失部分以残差列示，仅用于回顾，不构成投资建议。";
 
-interface AttributionShape {
-  fund_return?: number;
+interface IntervalShape {
+  period_return?: number;
   max_drawdown?: number;
 }
 
@@ -92,16 +95,28 @@ function Kpi({
 }
 
 export default function Panel({ result, fund, month, navSeries, holdings, meta }: PanelProps) {
-  const attribution = (result?.data ?? {}) as AttributionShape;
   const quarter = String((meta?.holdings as { quarter?: string } | undefined)?.quarter ?? "");
   const navSource = String((meta?.nav as { source?: string } | undefined)?.source ?? "");
+
+  // 本卡 id 与后端归因插件 id 不同，result 通常为 undefined；缺结果时自查一次。
+  // 整月没有数据（空状态）时不必再发请求，直接用引导文案。
+  const needsExtras = !result && (navSeries.length > 0 || holdings.length > 0);
+  const { extras, loading: extrasLoading } = useReviewExtras(fund?.code, month, needsExtras);
+  const attributionResult = result ?? extras.attribution;
+
+  const interval = (extras.interval?.data ?? {}) as IntervalShape;
 
   const firstPoint = navSeries[0];
   const lastPoint = navSeries.at(-1);
   const drawdown = useMemo(() => derivedDrawdown(navSeries), [navSeries]);
-  // 本卡是本地视图，拿不到其他插件的结果；回撤按净值读数派生并显式标注，
-  // 收益口径仍由页面顶部的区间收益卡（后端结果）负责，这里不重复显示。
-  const maxDrawdown = attribution.max_drawdown ?? drawdown;
+  // 回撤优先取后端（复权口径）的 returns.interval.max_drawdown；拿不到才退回单位净值派生，
+  // 并在界面上明确标注来源，避免把两种口径混成一个数字。
+  const backendDrawdown =
+    typeof interval.max_drawdown === "number" && Number.isFinite(interval.max_drawdown)
+      ? interval.max_drawdown
+      : undefined;
+  const maxDrawdown = backendDrawdown ?? drawdown;
+  const drawdownIsBackend = backendDrawdown !== undefined;
   // 前十大披露权重之和，供「披露覆盖度」快速读数
   const weightSum = useMemo(
     () => holdings.reduce((sum, item) => sum + (Number.isFinite(item.weight) ? item.weight : 0), 0),
@@ -185,14 +200,18 @@ export default function Panel({ result, fund, month, navSeries, holdings, meta }
                 </span>
                 {maxDrawdown !== undefined && (
                   <span className="ml-auto rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">
-                    区间最大回撤 {pct(maxDrawdown)}
+                    {drawdownIsBackend ? "区间最大回撤（复权口径）" : "区间最大回撤（单位净值派生）"}{" "}
+                    {pct(maxDrawdown)}
                   </span>
                 )}
               </div>
               <NavDrawdownChart points={navSeries} />
               <p className="mt-1 text-xs text-ink-500">
                 下格是同一时间轴上的水下深度，越深表示离区间高点越远，阴影带标记最深回撤那一段。
-                回撤曲线由净值读数派生，仅用于画图；口径数字取后端结果。
+                曲线按<b className="font-medium text-ink-700">单位净值</b>派生，仅用于画图；
+                {drawdownIsBackend
+                  ? "右上角的回撤数字取后端 returns.interval（分红复权口径）。"
+                  : "右上角的回撤数字暂按单位净值派生，含分红的月份会偏大，正式口径见页面顶部区间收益卡。"}
               </p>
             </>
           ) : (
@@ -206,7 +225,7 @@ export default function Panel({ result, fund, month, navSeries, holdings, meta }
       <section className="card">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h4 className="text-sm font-semibold text-ink-900">交易日历</h4>
-          <span className="text-xs text-ink-500">红涨绿跌 · 格内为该日涨跌幅</span>
+          <span className="text-xs text-ink-500">红涨绿跌 · 单位净值未复权，除息日会出现跳变</span>
         </div>
         <div className="mt-3">
           {navSeries.length > 1 ? (
@@ -222,12 +241,13 @@ export default function Panel({ result, fund, month, navSeries, holdings, meta }
       </section>
 
       <Attribution
-        result={result}
+        result={attributionResult}
         fund={fund}
         month={month}
         navSeries={navSeries}
         holdings={holdings}
         meta={meta}
+        loading={extrasLoading}
       />
 
       <Holdings

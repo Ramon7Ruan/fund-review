@@ -15,8 +15,6 @@ const UP = "#dc2626";
 const DOWN = "#059669";
 // 图表里不再用黑色：基金收益/零轴等中性元素统一用蓝色
 const INK = "#2563eb";
-const DISCLAIMER =
-  "以下内容为数据拆解与公开事件整理。事件与涨跌同时出现只代表时间上的相关性，不代表因果关系，不构成投资建议。";
 
 interface ContributionItem {
   code?: string;
@@ -484,8 +482,7 @@ function industryCompareOption(industries: IndustryGroup[]): EChartsOption {
 function compositionOption(
   totalContribution: number,
   residual: number,
-  coverage: number | undefined,
-  fundReturn: number,
+  fundReturn: number | undefined,
 ): EChartsOption {
   const held = Math.abs(totalContribution);
   const rest = Math.abs(residual);
@@ -510,21 +507,24 @@ function compositionOption(
     title: [
       {
         text: pct(fundReturn),
-        subtext: `本月区间收益${typeof coverage === "number" ? ` · 覆盖 ${pct(coverage, 1)}` : ""}`,
+        // 覆盖度已在卡片表头展示，环心只放收益，避免窄栏里文字压到环上
+        subtext: "本月区间收益",
         left: "center",
-        top: "42%",
+        top: "43%",
         textStyle: {
-          color: fundReturn >= 0 ? UP : DOWN,
-          fontSize: 18,
+          // 后端没给 fund_return 时显示占位符，不臆造 0.00%
+          color:
+            typeof fundReturn !== "number" ? INK : fundReturn >= 0 ? UP : DOWN,
+          fontSize: 16,
           fontWeight: 600,
         },
-        subtextStyle: { color: "#94a3b8", fontSize: 9 },
+        subtextStyle: { color: "#94a3b8", fontSize: 8 },
       },
     ],
     series: [
       {
         type: "pie",
-        radius: ["52%", "72%"],
+        radius: ["56%", "74%"],
         center: ["50%", "50%"],
         avoidLabelOverlap: true,
         label: { show: false },
@@ -568,11 +568,12 @@ function EmptyState({ title, hint }: { title: string; hint: string }) {
   );
 }
 
-export default function Panel({ result, month }: PanelProps) {
+export default function Panel({ result, month, loading }: PanelProps & { loading?: boolean }) {
   const data = (result?.data ?? {}) as AttributionData;
   const items = Array.isArray(data.items) ? data.items : [];
   const industries = Array.isArray(data.industries) ? data.industries : [];
-  const fundReturn = typeof data.fund_return === "number" ? data.fund_return : 0;
+  const fundReturnRaw = typeof data.fund_return === "number" ? data.fund_return : undefined;
+  const fundReturn = fundReturnRaw ?? 0;
   const residual = typeof data.residual_return === "number" ? data.residual_return : 0;
 
   const flow = useMemo<FlowPoint[]>(() => {
@@ -596,26 +597,34 @@ export default function Panel({ result, month }: PanelProps) {
       compositionOption(
         data.total_contribution ?? 0,
         data.residual_return ?? 0,
-        data.coverage,
-        data.fund_return ?? 0,
+        fundReturnRaw,
       ),
-    [data.total_contribution, data.residual_return, data.coverage, data.fund_return],
+    [data.total_contribution, data.residual_return, fundReturnRaw],
   );
 
   if (!result) {
     return (
       <EmptyState
-        title="本月收益拆解尚未返回数据"
-        hint="拆解数据由归因卡（后端 attribution.brinson）提供；它返回结果后，这里的瀑布、象限、行业对照与收益构成会直接显示。"
+        title={loading ? "正在读取收益拆解…" : "本月收益拆解尚未返回数据"}
+        hint={
+          loading
+            ? "数据来自后端 attribution.brinson，加载完成后自动显示。"
+            : "拆解数据由后端 attribution.brinson 提供；若该插件本月没有产出（例如持仓或行情缺失），这里只给引导，不报错。"
+        }
       />
     );
   }
 
   if (result.status !== "ready") {
+    // 不直接搬后端 notes 文案：那张「待接入」占位卡已经显示过，重复会撞车
     return (
       <EmptyState
         title={result.status === "stub" ? "收益拆解待数据接入" : "收益拆解执行失败"}
-        hint={result.notes?.[0] ?? result.error ?? "请稍后重试，或换一个有持仓披露的月份。"}
+        hint={
+          result.status === "stub"
+            ? "归因插件本月还没产出结果，接入后瀑布、象限、行业对照与收益构成会显示在这里。"
+            : (result.error ?? "请稍后重试，或换一个有持仓披露的月份。")
+        }
       />
     );
   }
@@ -624,10 +633,7 @@ export default function Panel({ result, month }: PanelProps) {
     return (
       <EmptyState
         title="本月没有可拆解的持仓贡献"
-        hint={
-          result.notes?.[0] ??
-          "可能缺少持仓披露、个股行情或行业映射。换一个月份或基金代码后重试。"
-        }
+        hint="可能缺少持仓披露、个股行情或行业映射。换一个月份或基金代码后重试。"
       />
     );
   }
@@ -708,7 +714,7 @@ export default function Panel({ result, month }: PanelProps) {
         </div>
         <Chart option={scatterChart} className="mt-1 h-72 w-full" testId="contribution-scatter" />
         <p className="mt-1 text-xs text-ink-500">
-          右上 = 仓位重且区间上涨，是本月的贡献主力；右下 = 仓位重但区间下跌，是主要拖累。
+          右上 = 仓位重且区间上涨，正贡献较大；右下 = 仓位重但区间下跌，负贡献较大。
           竖虚线为披露权重中位数。
         </p>
       </div>
@@ -795,8 +801,6 @@ export default function Panel({ result, month }: PanelProps) {
           ))}
         </ul>
       )}
-
-      <p className="mt-3 border-t border-ink-100 pt-2 text-xs text-ink-500">{DISCLAIMER}</p>
     </div>
   );
 }
