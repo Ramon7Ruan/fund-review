@@ -167,10 +167,12 @@ export function Workbench() {
             )}
 
             {features.map((feature) => {
-              const result = data.results[feature.id];
+              const result = data.results[feature.resultId ?? feature.id];
               const meta = data.plugins.find((p) => p.id === feature.id);
 
-              if (result?.status === "stub") {
+              // 本地视图（配了 resultId）不能因为共享结果不可用就整卡替换，
+              // 否则会连带丢掉净值、日历等不依赖该结果的内容；由 Panel 自行降级。
+              if (!feature.resultId && result?.status === "stub") {
                 return (
                   <div key={feature.id} className={feature.span === 2 ? "md:col-span-2" : ""}>
                     <StubCard title={feature.title} meta={meta} result={result} />
@@ -178,7 +180,7 @@ export function Workbench() {
                 );
               }
 
-              if (result?.status === "error") {
+              if (!feature.resultId && result?.status === "error") {
                 return (
                   <div key={feature.id} className={feature.span === 2 ? "md:col-span-2" : ""}>
                     <div className="card border-red-200">
@@ -195,6 +197,7 @@ export function Workbench() {
                   <ErrorBoundary title={feature.title}>
                     <Panel
                       result={result}
+                      results={data.results}
                       fund={data.fund}
                       month={data.month}
                       navSeries={data.nav_series}

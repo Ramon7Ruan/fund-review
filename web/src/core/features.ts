@@ -20,6 +20,11 @@ import type {
 export interface FeatureManifest {
   /** 对应后端插件 id，例如 returns.interval */
   id: string;
+  /**
+   * 实际读取哪一份后端结果；缺省等于 id。
+   * 本地视图（如月度回顾）用它可以复用某个后端插件的结果，而不必二次请求。
+   */
+  resultId?: string;
   title: string;
   /** 卡片排序，数字小的在前 */
   order?: number;
@@ -28,8 +33,10 @@ export interface FeatureManifest {
 }
 
 export interface PanelProps {
-  /** 后端该插件的执行结果；本地视图（如净值曲线）没有对应插件时为 undefined */
+  /** 后端该插件（或 manifest.resultId）的执行结果；本地视图没有对应插件时为 undefined */
   result?: PluginResult;
+  /** 本次回顾的全部后端结果，供需要多份结果的视图读取 */
+  results?: Record<string, PluginResult>;
   fund: FundInfo;
   month: string;
   navSeries: NavPoint[];
@@ -47,6 +54,7 @@ export type PanelComponent = ComponentType<PanelProps>;
 
 export interface Feature {
   id: string;
+  resultId?: string;
   title: string;
   order: number;
   span: 1 | 2;
@@ -84,6 +92,7 @@ export function collectFeatures(): Feature[] {
     }
     features.push({
       id: manifest.id,
+      resultId: manifest.resultId,
       title: manifest.title || manifest.id,
       order: manifest.order ?? 100,
       span: manifest.span ?? 1,

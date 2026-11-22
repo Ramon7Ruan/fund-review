@@ -6,10 +6,9 @@
  *
  * 依赖说明：
  * - 月份选择与请求由工作台（pages/Workbench.tsx）统一完成，本卡只负责渲染，
- *   因此不重复放表单、不改路由、不碰 core/。
- * - 工作台按 `data.results[manifest.id]` 取结果，而本卡 id 是 `local.monthly-review`，
- *   与后端归因插件 id 不同，所以 `result` 通常为 undefined；归因与复权口径的区间收益
- *   由 reviewExtras 用已有的 core/api.review 再取一次（不修改 core/）。
+ *   因此不重复放表单、不改路由。
+ * - manifest.resultId 指向 attribution.brinson，工作台会把该结果作为 result 传入；
+ *   区间收益从 results["returns.interval"] 读取，不再二次请求。
  * - 持仓取 /api/review 的 holdings，净值取 nav_series（单位净值，未复权）。
  * - 空数据约定：任一模块缺数据只降级该模块并给引导，不报错、不白屏。
  * - 配色约定：红=上涨/正贡献，绿=下跌/负贡献，蓝=中性（净值、权重、零轴），不用黑色。
@@ -23,7 +22,6 @@ import Attribution from "./Attribution";
 import Holdings from "./Holdings";
 import { NavDrawdownChart } from "./NavDrawdownChart";
 import { TradingCalendar } from "./TradingCalendar";
-import { useReviewExtras } from "./reviewExtras";
 
 const GREEN = "#059669";
 const BLUE = "#2563eb";
@@ -96,6 +94,7 @@ function Kpi({
 
 export default function Panel({
   result,
+  results,
   fund,
   month,
   navSeries,
@@ -107,13 +106,10 @@ export default function Panel({
   const quarter = String((meta?.holdings as { quarter?: string } | undefined)?.quarter ?? "");
   const navSource = String((meta?.nav as { source?: string } | undefined)?.source ?? "");
 
-  // 本卡 id 与后端归因插件 id 不同，result 通常为 undefined；缺结果时自查一次。
-  // 整月没有数据（空状态）时不必再发请求，直接用引导文案。
-  const needsExtras = !result && (navSeries.length > 0 || holdings.length > 0);
-  const { extras, loading: extrasLoading } = useReviewExtras(fund?.code, month, needsExtras);
-  const attributionResult = result ?? extras.attribution;
-
-  const interval = (extras.interval?.data ?? {}) as IntervalShape;
+  // 工作台按 manifest.resultId 取 attribution.brinson 的结果并传入，所以这里直接用；
+  // 区间收益从同一份 results 里读，不再二次请求。
+  const attributionResult = result;
+  const interval = (results?.["returns.interval"]?.data ?? {}) as IntervalShape;
 
   const firstPoint = navSeries[0];
   const lastPoint = navSeries.at(-1);
@@ -256,7 +252,6 @@ export default function Panel({
         navSeries={navSeries}
         holdings={holdings}
         meta={meta}
-        loading={extrasLoading}
       />
 
       <Holdings

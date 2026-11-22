@@ -98,53 +98,39 @@ describe("月度回顾视图插件", () => {
     expect(screen.getAllByText(/不构成投资建议/)).toHaveLength(1);
   });
 
-  it("工作台没有传 result 时，自己按 results 键取回归因结果，拆解图可见", async () => {
-    // 模拟工作台的取数路径：manifest.id 是 local.monthly-review，
-    // results 里只有 attribution.brinson / returns.interval
-    const payload = {
-      fund: { code: "003095", name: "分红月样本" },
-      month: "2021-08",
-      nav_series: [
-        { date: "2021-08-09", nav: 3.13 },
-        { date: "2021-08-10", nav: 3.01 },
-        { date: "2021-08-11", nav: 3.05 },
-      ],
-      holdings,
-      plugins: [],
-      errors: [],
-      meta: {},
-      results: {
-        "attribution.brinson": readyResult,
-        "returns.interval": {
-          status: "ready" as const,
-          title: "区间收益",
-          notes: ["区间收益按分红复权指数计算"],
-          data: { period_return: 0.0123, max_drawdown: -0.1608 },
-        },
+  it("工作台按 resultId 传入结果后，拆解与复权回撤直接可见", () => {
+    const navSeriesForTest = [
+      { date: "2021-08-09", nav: 3.13 },
+      { date: "2021-08-10", nav: 3.01 },
+      { date: "2021-08-11", nav: 3.05 },
+    ];
+    const results = {
+      "attribution.brinson": readyResult,
+      "returns.interval": {
+        status: "ready" as const,
+        title: "区间收益",
+        notes: ["区间收益按分红复权指数计算"],
+        data: { period_return: 0.0123, max_drawdown: -0.1608 },
       },
     };
-    const fetchMock = vi.fn(() =>
-      Promise.resolve({ ok: true, json: () => Promise.resolve(payload) })
-    );
-    vi.stubGlobal("fetch", fetchMock);
 
     render(
       <Panel
         {...baseProps}
+        result={readyResult}
+        results={results}
         fund={{ code: "003095", name: "分红月样本" }}
         month="2021-08"
-        navSeries={payload.nav_series}
+        navSeries={navSeriesForTest}
         holdings={holdings}
       />
     );
 
-    expect(await screen.findByTestId("waterfall-chart")).toBeInTheDocument();
+    expect(screen.getByTestId("waterfall-chart")).toBeInTheDocument();
     expect(screen.getByTestId("industry-compare-chart")).toBeInTheDocument();
     // 回撤数字取后端复权口径（-16.08%），不是单位净值派生的值
     expect(screen.getByText(/区间最大回撤（复权口径）/)).toBeInTheDocument();
     expect(screen.getByText(/-16\.08%/)).toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    vi.unstubAllGlobals();
   });
 
   it("有上一期时展示新增/减持与较上期列", () => {
