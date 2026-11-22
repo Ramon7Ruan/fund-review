@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import csv
 import io
+import json
+from pathlib import Path
 from typing import Any
 
 from data_pipeline.cache.store import Cache, MemoryCache
@@ -22,6 +24,31 @@ NAV_TTL_SECONDS = 6 * 3600
 HOLDINGS_TTL_SECONDS = 7 * 24 * 3600
 # 分红变动极少，缓存一周；sync_nav 主动同步时不走缓存
 DIVIDEND_TTL_SECONDS = 7 * 24 * 3600
+# 行业映射抓取失败后的退避窗口：期间不再重试 31 个行业
+INDUSTRY_FAIL_KEY = "industry:map:failed"
+INDUSTRY_FAIL_TTL_SECONDS = 60
+# 快照是降级数据，只缓存 10 分钟，接口恢复后尽快重试实时映射
+INDUSTRY_SNAPSHOT_TTL_SECONDS = 600
+INDUSTRY_SNAPSHOT_PATH = (
+    Path(__file__).resolve().parents[1] / "data" / "snapshots" / "sw_industry_map.json"
+)
+
+
+def load_industry_snapshot(path: Path | None = None) -> dict[str, Any] | None:
+    """读取本地行业映射快照；文件缺失或格式不对时返回 None，不抛错。"""
+    target = path or INDUSTRY_SNAPSHOT_PATH
+    try:
+        payload = json.loads(target.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    mapping = payload.get("map")
+    if not isinstance(mapping, dict) or not mapping:
+        return None
+    return {
+        "map": {str(code).zfill(6): str(industry) for code, industry in mapping.items()},
+        "as_of": str(payload.get("as_of", "")),
+        "source": str(payload.get("source", "snapshot")),
+    }
 
 
 class DataService:
@@ -322,29 +349,59 @@ class DataService:
     def get_industry_map(
         self, codes: list[str] | tuple[str, ...]
     ) -> tuple[dict[str, str], dict[str, Any]]:
-        """个股 → 申万一级行业。全市场映射缓存 7 天，首次构建需遍历 31 个行业。"""
-        key = "industry:map:v1"
-        mapping: dict[str, str] | None = self.cache.get(key)
+        """个股 → 申万一级行业。
+
+        缓存 7 天。抓取失败时依次：本地快照 → 60 秒退避。
+        退避期间直接抛错，避免每次请求都重试 31 个行业拖慢页面。
+        """
+        key = "industry:map:v2"
+        cached = self.cache.get(key)
         attempts: list[str] = []
 
-        if mapping is None:
+        if cached is not None:
+            mapping: dict[str, str] = cached["map"]
+            source = str(cached.get("source", "cache"))
+            as_of = str(cached.get("as_of", ""))
+        else:
+            if self.cache.get(INDUSTRY_FAIL_KEY):
+                raise SourceUnavailable("行业映射暂不可用（退避中），请稍后重试")
+
             mapping = {}
-            for item in akshare_source.fetch_sw_industries():
-                try:
-                    members = akshare_source.fetch_sw_constituents(item["sw_code"])
-                except SourceUnavailable as exc:
-                    attempts.append(f"{item['industry']}：{exc}")
-                    continue
-                for member in members:
-                    mapping.setdefault(member["code"], item["industry"])
-            if not mapping:
-                raise SourceUnavailable("申万成分股全部抓取失败，无法建立行业映射")
-            self.cache.set(key, mapping, ttl_seconds=HOLDINGS_TTL_SECONDS)
+            source = "akshare.sw"
+            as_of = ""
+            try:
+                for item in akshare_source.fetch_sw_industries():
+                    try:
+                        members = akshare_source.fetch_sw_constituents(item["sw_code"])
+                    except SourceUnavailable as exc:
+                        attempts.append(f"{item['industry']}：{exc}")
+                        continue
+                    for member in members:
+                        mapping.setdefault(member["code"], item["industry"])
+                if not mapping:
+                    raise SourceUnavailable("申万成分股全部抓取失败，无法建立行业映射")
+            except SourceUnavailable as exc:
+                snapshot = load_industry_snapshot()
+                if snapshot is None:
+                    self.cache.set(INDUSTRY_FAIL_KEY, True, ttl_seconds=INDUSTRY_FAIL_TTL_SECONDS)
+                    raise
+                mapping = snapshot["map"]
+                source = f"snapshot:{snapshot['source']}"
+                as_of = snapshot["as_of"]
+                attempts.append(f"实时抓取失败，改用快照（{as_of or '未知日期'}）：{exc}")
+
+            ttl = HOLDINGS_TTL_SECONDS if source == "akshare.sw" else INDUSTRY_SNAPSHOT_TTL_SECONDS
+            self.cache.set(
+                key,
+                {"map": mapping, "source": source, "as_of": as_of},
+                ttl_seconds=ttl,
+            )
 
         wanted = {str(c).zfill(6) for c in codes}
         subset = {c: mapping[c] for c in sorted(wanted) if c in mapping}
         meta = {
-            "source": "akshare.sw",
+            "source": source,
+            "as_of": as_of,
             "requested": len(wanted),
             "mapped": len(subset),
             "unmapped": sorted(wanted - set(subset)),
