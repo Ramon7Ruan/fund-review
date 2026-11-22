@@ -47,6 +47,9 @@ class ReviewResponse(BaseModel):
     plugins: list[dict[str, Any]]
     errors: list[str] = Field(default_factory=list)
     meta: dict[str, Any] = Field(default_factory=dict)
+    holdings_previous: list[dict[str, Any]] = Field(default_factory=list)
+    holdings_changes: list[dict[str, Any]] = Field(default_factory=list)
+    holdings_compare: dict[str, Any] = Field(default_factory=dict)
 
 
 class ErrorBody(BaseModel):

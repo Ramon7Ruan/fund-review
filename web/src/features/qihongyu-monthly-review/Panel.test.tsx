@@ -146,4 +146,69 @@ describe("月度回顾视图插件", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     vi.unstubAllGlobals();
   });
+
+  it("有上一期时展示新增/减持与较上期列", () => {
+    render(
+      <Panel
+        {...baseProps}
+        navSeries={navSeries}
+        holdings={holdings}
+        holdingsChanges={[
+          {
+            code: "600519",
+            name: "贵州茅台",
+            industry: "食品饮料",
+            current_weight: 0.12,
+            previous_weight: 0.0974,
+            delta: 0.0226,
+            status: "increased",
+          },
+          {
+            code: "000858",
+            name: "五粮液",
+            industry: "食品饮料",
+            current_weight: 0.0612,
+            previous_weight: 0.08,
+            delta: -0.0188,
+            status: "decreased",
+          },
+          {
+            code: "000001",
+            name: "平安银行",
+            industry: "银行",
+            current_weight: 0.03,
+            previous_weight: 0,
+            delta: 0.03,
+            status: "added",
+          },
+        ]}
+        holdingsCompare={{
+          current_quarter: "2026年3季度",
+          previous_quarter: "2026年2季度",
+          note: "两期均按前 10 大截取后比较",
+        }}
+      />
+    );
+
+    expect(screen.getByText("本期变化（前十大口径）")).toBeInTheDocument();
+    expect(screen.getAllByText("新增").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("增持").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("减持").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("+3.00%").length).toBeGreaterThan(0);
+    expect(screen.getByText("两期均按前 10 大截取后比较")).toBeInTheDocument();
+  });
+
+  it("缺上一期时明确说明，不展示变动区块", () => {
+    render(
+      <Panel
+        {...baseProps}
+        navSeries={navSeries}
+        holdings={holdings}
+        holdingsCompare={{ note: "上一期持仓未披露，无法计算变动" }}
+      />
+    );
+
+    expect(screen.getAllByText("上一期持仓未披露，无法计算变动").length).toBeGreaterThan(0);
+    expect(screen.queryByText("本期变化（前十大口径）")).not.toBeInTheDocument();
+  });
 });

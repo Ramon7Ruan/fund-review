@@ -94,7 +94,16 @@ function Kpi({
   );
 }
 
-export default function Panel({ result, fund, month, navSeries, holdings, meta }: PanelProps) {
+export default function Panel({
+  result,
+  fund,
+  month,
+  navSeries,
+  holdings,
+  holdingsChanges,
+  holdingsCompare,
+  meta,
+}: PanelProps) {
   const quarter = String((meta?.holdings as { quarter?: string } | undefined)?.quarter ?? "");
   const navSource = String((meta?.nav as { source?: string } | undefined)?.source ?? "");
 
@@ -256,6 +265,8 @@ export default function Panel({ result, fund, month, navSeries, holdings, meta }
         month={month}
         navSeries={navSeries}
         holdings={holdings}
+        holdingsChanges={holdingsChanges}
+        holdingsCompare={holdingsCompare}
         meta={meta}
       />
 

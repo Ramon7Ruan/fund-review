@@ -8,7 +8,14 @@
 
 import type { ComponentType } from "react";
 
-import type { FundInfo, Holding, NavPoint, PluginResult } from "./api";
+import type {
+  FundInfo,
+  Holding,
+  HoldingChange,
+  HoldingCompare,
+  NavPoint,
+  PluginResult,
+} from "./api";
 
 export interface FeatureManifest {
   /** 对应后端插件 id，例如 returns.interval */
@@ -27,6 +34,12 @@ export interface PanelProps {
   month: string;
   navSeries: NavPoint[];
   holdings: Holding[];
+  /** 上一期披露持仓，供跨期对比；数据层未提供时为空 */
+  holdingsPrevious?: Holding[];
+  /** 两期持仓差异（后端计算），不传时组件不展示变动列 */
+  holdingsChanges?: HoldingChange[];
+  /** 两期披露期与口径说明 */
+  holdingsCompare?: HoldingCompare;
   meta: Record<string, Record<string, unknown>>;
 }
 

@@ -8,12 +8,19 @@
 
 from __future__ import annotations
 
+from dataclasses import asdict
+
 from fastapi import APIRouter, Depends, HTTPException
 
 from api.deps import get_service
 from api.schemas import ReviewRequest, ReviewResponse
 from data_pipeline.service import DataService
 from data_pipeline.sources.akshare_source import SourceUnavailable
+from engine.holdings import (
+    HoldingPeriod,
+    compute_holding_changes,
+    select_comparable_periods,
+)
 from engine.runtime import PluginContext, registry
 from engine.validation import clean_nav_series, validate_holdings
 
@@ -68,6 +75,44 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
     holdings_report = validate_holdings(holdings)
     errors.extend(holdings_report.errors)
     errors.extend(holdings_report.warnings)
+
+    # 两期持仓对比：只比较前十大，缺上一期时明确降级，不把全部持仓标为新增。
+    holdings_previous: list[dict] = []
+    holdings_changes: list[dict] = []
+    holdings_compare: dict = {}
+    periods_meta: dict = {}
+    try:
+        periods, periods_meta = service.get_holdings_periods(payload.fund_code, year)
+        if len(periods) < 2:
+            prior_periods, prior_meta = service.get_holdings_periods(
+                payload.fund_code, str(int(year) - 1)
+            )
+            periods = periods + prior_periods
+            periods_meta = {**periods_meta, "prior": prior_meta}
+        current, previous, compare_note = select_comparable_periods(
+            [
+                HoldingPeriod(
+                    quarter=item["quarter"],
+                    disclosure_type=item["disclosure_type"],
+                    positions=tuple(item["positions"]),
+                )
+                for item in periods
+            ]
+        )
+        if current and previous:
+            holdings_previous = previous
+            holdings_changes = [asdict(item) for item in compute_holding_changes(previous, current)]
+            holdings_compare = {
+                "current_quarter": periods[0]["quarter"],
+                "previous_quarter": periods[1]["quarter"],
+                "current_count": len(current),
+                "previous_count": len(previous),
+                "note": compare_note,
+            }
+        else:
+            holdings_compare = {"note": compare_note}
+    except SourceUnavailable as exc:
+        errors.append(f"持仓对比数据不可用：{exc}")
 
     # 归因所需数据：个股行情、行业映射、行业指数收益。
     # 任一环节失败只记录并降级，不阻塞其他插件。
@@ -162,9 +207,13 @@ def review(payload: ReviewRequest, service: DataService = Depends(get_service)) 
             "nav": nav_meta,
             "nav_total_return": tr_meta,
             "holdings": holdings_meta,
+            "holdings_periods": periods_meta,
             "quotes": quotes_meta,
             "industry_map": industry_meta,
             "benchmark_returns": benchmark_meta,
             "events": events_meta,
         },
+        holdings_previous=holdings_previous,
+        holdings_changes=holdings_changes,
+        holdings_compare=holdings_compare,
     )
