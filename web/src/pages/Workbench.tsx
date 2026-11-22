@@ -199,6 +199,9 @@ export function Workbench() {
                       month={data.month}
                       navSeries={data.nav_series}
                       holdings={data.holdings}
+                      holdingsPrevious={data.holdings_previous}
+                      holdingsChanges={data.holdings_changes}
+                      holdingsCompare={data.holdings_compare}
                       meta={data.meta}
                     />
                   </ErrorBoundary>

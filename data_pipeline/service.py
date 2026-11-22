@@ -15,6 +15,7 @@ from data_pipeline.fallback import SourceChain
 from data_pipeline.fund_store import FundDataStore
 from data_pipeline.sources import akshare_source, danjuan_fund, eastmoney_dividends
 from data_pipeline.sources.akshare_source import SourceUnavailable
+from engine.holdings import build_periods
 from engine.returns.dividend import total_return_index
 
 NAV_TTL_SECONDS = 6 * 3600
@@ -231,6 +232,50 @@ class DataService:
         if source == "local_import":
             meta.update(fallback=True, as_of=snapshot["as_of"])
         return latest, meta
+
+    def get_holdings_periods(
+        self, code: str, year: str
+    ) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+        """返回该年所有披露期（时间倒序），每期含 quarter / disclosure_type / positions。
+
+        与 get_holdings 共用同一份缓存，不重复抓取。抓取失败返回空列表并标注来源，
+        由调用方决定是否降级，不在这里抛错。
+        """
+        key = f"holdings:{code}:{year}"
+        rows = self.cache.get(key)
+        cached = rows is not None
+        source = "cache"
+        attempts: list[str] = []
+
+        if rows is None:
+            try:
+                outcome = self.holdings_chain.fetch(code, year)
+                rows = outcome.data
+                source = outcome.source
+                attempts = outcome.attempts
+                self.cache.set(key, rows, ttl_seconds=HOLDINGS_TTL_SECONDS)
+            except SourceUnavailable as exc:
+                attempts = [str(exc)]
+                rows = []
+                source = "unavailable"
+
+        periods = build_periods(rows or [])
+        return (
+            [
+                {
+                    "quarter": period.quarter,
+                    "disclosure_type": period.disclosure_type,
+                    "positions": list(period.positions),
+                }
+                for period in periods
+            ],
+            {
+                "source": source,
+                "cached": cached,
+                "periods": len(periods),
+                "attempts": attempts,
+            },
+        )
 
     # ---------- 归因：个股行情与申万行业 ----------
 

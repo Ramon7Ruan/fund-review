@@ -38,6 +38,27 @@ export interface Holding {
   name: string;
   weight: number;
   quarter: string;
+  industry?: string;
+}
+
+export type HoldingChangeStatus = "added" | "removed" | "increased" | "decreased" | "unchanged";
+
+export interface HoldingChange {
+  code: string;
+  name: string;
+  industry: string;
+  current_weight: number;
+  previous_weight: number;
+  delta: number;
+  status: HoldingChangeStatus;
+}
+
+export interface HoldingCompare {
+  current_quarter?: string;
+  previous_quarter?: string;
+  current_count?: number;
+  previous_count?: number;
+  note?: string;
 }
 
 export interface FundInfo {
@@ -53,6 +74,9 @@ export interface ReviewResponse {
   month: string;
   nav_series: NavPoint[];
   holdings: Holding[];
+  holdings_previous?: Holding[];
+  holdings_changes?: HoldingChange[];
+  holdings_compare?: HoldingCompare;
   results: Record<string, PluginResult>;
   plugins: PluginMeta[];
   errors: string[];

@@ -59,6 +59,48 @@ class FakeService:
             {"source": "fake", "cached": False, "quarter": quarter, "count": 1, "attempts": []},
         )
 
+    def get_holdings_periods(self, code, year):
+        current = [
+            {
+                "code": "600519",
+                "name": "贵州茅台",
+                "weight": 0.1,
+                "industry": "食品饮料",
+                "quarter": f"{year}年3季度股票投资明细",
+            },
+            {
+                "code": "000858",
+                "name": "五粮液",
+                "weight": 0.05,
+                "industry": "食品饮料",
+                "quarter": f"{year}年3季度股票投资明细",
+            },
+        ]
+        previous = [
+            {
+                "code": "600519",
+                "name": "贵州茅台",
+                "weight": 0.08,
+                "industry": "食品饮料",
+                "quarter": f"{year}年2季度股票投资明细",
+            }
+        ]
+        return (
+            [
+                {
+                    "quarter": f"{year}年3季度股票投资明细",
+                    "disclosure_type": "top10",
+                    "positions": current,
+                },
+                {
+                    "quarter": f"{year}年2季度股票投资明细",
+                    "disclosure_type": "top10",
+                    "positions": previous,
+                },
+            ],
+            {"source": "fake", "cached": False, "periods": 2, "attempts": []},
+        )
+
     def get_quotes(self, codes, month: str) -> tuple[dict[str, list[dict]], dict]:
         rows = {
             str(code): [

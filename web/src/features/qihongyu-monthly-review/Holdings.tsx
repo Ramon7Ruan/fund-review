@@ -9,10 +9,26 @@ import * as echarts from "echarts";
 import type { EChartsOption } from "echarts";
 import { useEffect, useMemo, useRef } from "react";
 
-import type { Holding } from "../../core/api";
+import type { Holding, HoldingChange, HoldingChangeStatus } from "../../core/api";
 import type { PanelProps } from "../../core/features";
 
 const NEUTRAL = "#2563eb";
+
+const STATUS_LABEL: Record<HoldingChangeStatus, string> = {
+  added: "新增",
+  removed: "退出",
+  increased: "增持",
+  decreased: "减持",
+  unchanged: "持平",
+};
+
+const STATUS_CLASS: Record<HoldingChangeStatus, string> = {
+  added: "bg-red-50 text-red-700",
+  increased: "bg-red-50 text-red-700",
+  removed: "bg-emerald-50 text-emerald-700",
+  decreased: "bg-emerald-50 text-emerald-700",
+  unchanged: "bg-blue-50 text-blue-700",
+};
 
 /** 展示上限：超过后只在表里滚动，图表只画权重最大的若干只。 */
 const CHART_LIMIT = 12;
@@ -27,6 +43,11 @@ interface HoldingRow extends Holding {
 function pct(value: unknown, digits = 2): string {
   if (typeof value !== "number" || !Number.isFinite(value)) return "—";
   return `${(value * 100).toFixed(digits)}%`;
+}
+
+function signedPct(value: number, digits = 2): string {
+  const text = pct(value, digits);
+  return value > 0 ? `+${text}` : text;
 }
 
 /** 权重条形图：横向条形，长度即披露权重。 */
@@ -148,7 +169,12 @@ function Chart({ option, height, testId }: { option: EChartsOption; height: numb
   return <div ref={ref} data-testid={testId} className="w-full" style={{ height }} />;
 }
 
-export default function Panel({ holdings, meta }: PanelProps) {
+export default function Panel({
+  holdings,
+  meta,
+  holdingsChanges,
+  holdingsCompare,
+}: PanelProps) {
   const rows = (Array.isArray(holdings) ? holdings : []) as HoldingRow[];
   const holdingsMeta = (meta.holdings ?? {}) as {
     quarter?: string;
@@ -156,6 +182,19 @@ export default function Panel({ holdings, meta }: PanelProps) {
     source?: string;
     cached?: boolean;
   };
+
+  const changes = Array.isArray(holdingsChanges) ? holdingsChanges : [];
+  const changeMap = useMemo(
+    () => new Map<string, HoldingChange>(changes.map((item) => [item.code, item])),
+    [changes]
+  );
+  const moved = useMemo(
+    () => changes.filter((item) => item.status !== "unchanged"),
+    [changes]
+  );
+  const addedCount = changes.filter((item) => item.status === "added").length;
+  const removedCount = changes.filter((item) => item.status === "removed").length;
+  const compareNote = holdingsCompare?.note ?? "";
 
   const totalWeight = rows.reduce((sum, row) => sum + (Number.isFinite(row.weight) ? row.weight : 0), 0);
   const chartRows = useMemo(
@@ -191,10 +230,13 @@ export default function Panel({ holdings, meta }: PanelProps) {
         <h3 className="text-sm font-semibold text-ink-900">持仓变动</h3>
         <span className="text-xs text-ink-500">
           {holdingsMeta.quarter || "最近一期披露"} · {rows.length} 只
+          {holdingsCompare?.previous_quarter ? " · 对比上一期" : ""}
         </span>
       </div>
 
-      <dl className="mt-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-3">
+      {compareNote && <p className="mt-2 text-xs text-ink-500">{compareNote}</p>}
+
+      <dl className="mt-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-5">
         <div>
           <dt className="label">披露权重合计</dt>
           <dd className="mt-1 text-base font-semibold text-ink-900">{pct(totalWeight)}</dd>
@@ -202,6 +244,12 @@ export default function Panel({ holdings, meta }: PanelProps) {
         <div>
           <dt className="label">覆盖行业</dt>
           <dd className="mt-1 text-base font-semibold text-ink-900">{industries.length}</dd>
+        </div>
+        <div>
+          <dt className="label">新增 / 退出</dt>
+          <dd className="mt-1 text-base font-semibold text-ink-900">
+            {changes.length > 0 ? `${addedCount} / ${removedCount}` : "—"}
+          </dd>
         </div>
         <div>
           <dt className="label">数据来源</dt>
@@ -250,29 +298,73 @@ export default function Panel({ holdings, meta }: PanelProps) {
             <tr className="border-b border-ink-100">
               <th className="py-1 pr-3 font-medium">股票</th>
               <th className="py-1 pr-3 font-medium">行业</th>
-              <th className="py-1 text-right font-medium">披露权重</th>
+              <th className="py-1 pr-3 text-right font-medium">披露权重</th>
+              <th className="py-1 text-right font-medium">较上期</th>
             </tr>
           </thead>
           <tbody className="text-ink-700">
             {[...rows]
               .sort((a, b) => b.weight - a.weight)
-              .map((row) => (
-                <tr key={row.code} className="border-b border-ink-100/60">
-                  <td className="py-1 pr-3">
-                    {row.name || "—"}
-                    <span className="ml-1 font-mono text-ink-500">{row.code}</span>
-                  </td>
-                  <td className="py-1 pr-3">{row.industry?.trim() || "未映射"}</td>
-                  <td className="py-1 text-right tabular-nums">{pct(row.weight)}</td>
-                </tr>
-              ))}
+              .map((row) => {
+                const change = changeMap.get(row.code);
+                return (
+                  <tr key={row.code} className="border-b border-ink-100/60">
+                    <td className="py-1 pr-3">
+                      {row.name || "—"}
+                      <span className="ml-1 font-mono text-ink-500">{row.code}</span>
+                    </td>
+                    <td className="py-1 pr-3">{row.industry?.trim() || "未映射"}</td>
+                    <td className="py-1 pr-3 text-right tabular-nums">{pct(row.weight)}</td>
+                    <td className="py-1 text-right tabular-nums">
+                      {change && change.status !== "unchanged" ? (
+                        <span className={change.delta >= 0 ? "text-red-600" : "text-emerald-600"}>
+                          {signedPct(change.delta)}
+                        </span>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
           </tbody>
         </table>
       </div>
 
+      {moved.length > 0 && (
+        <div className="mt-4">
+          <div className="text-xs font-medium text-ink-700">本期变化（前十大口径）</div>
+          <ul className="mt-1 divide-y divide-ink-100/60 text-xs">
+            {moved.slice(0, 12).map((item) => (
+              <li key={item.code} className="flex items-center justify-between gap-3 py-1">
+                <span className="flex items-center gap-2 text-ink-700">
+                  <span className={`rounded px-1.5 py-0.5 ${STATUS_CLASS[item.status]}`}>
+                    {STATUS_LABEL[item.status]}
+                  </span>
+                  {item.name || item.code}
+                  <span className="font-mono text-ink-500">{item.code}</span>
+                </span>
+                <span
+                  className={`tabular-nums ${item.delta >= 0 ? "text-red-600" : "text-emerald-600"}`}
+                >
+                  {signedPct(item.delta)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          {moved.length > 12 && (
+            <p className="mt-1 text-xs text-ink-500">仅展示变化最大的 12 条</p>
+          )}
+        </div>
+      )}
+
       <ul className="mt-3 list-disc space-y-1 pl-4 text-xs text-ink-500">
         <li>权重取最近一期季报披露值，未做区间前漂移；季报只披露前十大重仓，合计不足 100% 属正常，差额计入残差。</li>
-        <li>较上期的增持、减持与退出对比需要数据层提供上一期持仓，接入前本卡不展示增减列，避免用推算值冒充披露值。</li>
+        {changes.length > 0 ? (
+          <li>变动按两期前十大截取后比较；未进入前十大的持仓不参与变动判断，避免用不同披露口径造出假清仓。</li>
+        ) : (
+          <li>{compareNote || "上一期持仓未披露，暂不展示增减列。"}</li>
+        )}
       </ul>
     </div>
   );
