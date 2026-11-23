@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { ErrorBoundary } from "../components/ErrorBoundary";
+import { ExportReport } from "../components/ExportReport";
 import { StubCard } from "../components/StubCard";
 import { api, type ReviewResponse } from "../core/api";
 import { features } from "../core/features";
@@ -89,6 +90,8 @@ export function Workbench() {
           <button type="submit" className="btn" disabled={!canSubmit}>
             {phase === "loading" ? "生成中…" : "生成月度回顾"}
           </button>
+
+          {phase === "done" && data && <ExportReport data={data} />}
 
           <span className="text-xs text-ink-500">
             {phase === "loading" && "正在抓取净值与持仓，首次可能需要几秒"}

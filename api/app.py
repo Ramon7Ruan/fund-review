@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from api import __version__
-from api.routes import funds, health, portfolio, review
+from api.routes import funds, health, portfolio, report, review
 from engine.runtime import registry
 
 logging.basicConfig(
@@ -63,6 +63,7 @@ def create_app() -> FastAPI:
     app.include_router(funds.router)
     app.include_router(review.router)
     app.include_router(portfolio.router)
+    app.include_router(report.router)
 
     @app.exception_handler(StarletteHTTPException)
     async def handle_http_error(request: Request, exc: StarletteHTTPException) -> JSONResponse:
