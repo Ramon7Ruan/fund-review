@@ -111,6 +111,31 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return (await response.json()) as T;
 }
 
+/**
+ * 请求返回纯文本（报告导出用，后端回的是 HTML 而不是 JSON）。
+ */
+async function requestText(path: string, init?: RequestInit): Promise<string> {
+  let response: Response;
+  try {
+    response = await fetch(path, init);
+  } catch {
+    throw new Error("无法连接后端服务，请确认 make backend 已启动");
+  }
+
+  if (!response.ok) {
+    let message = `报告生成失败（${response.status}）`;
+    try {
+      const body = (await response.json()) as { error?: { message?: string } };
+      if (body.error?.message) message = body.error.message;
+    } catch {
+      // 响应不是 JSON 时保留默认文案
+    }
+    throw new Error(message);
+  }
+
+  return await response.text();
+}
+
 export const api = {
   health: () => request<HealthResponse>("/api/health"),
   plugins: () => request<{ items: PluginMeta[] }>("/api/plugins"),
@@ -119,5 +144,15 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
+    }),
+  /**
+   * 把已经渲染过的回顾快照原样交给后端生成报告。
+   * 不重新取数，因此报告里的数字与页面必然一致。
+   */
+  report: (snapshot: ReviewResponse) =>
+    requestText("/api/report", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(snapshot),
     }),
 };
