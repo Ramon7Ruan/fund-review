@@ -54,9 +54,18 @@ def test_report_returns_html(client: TestClient, snapshot: dict[str, Any]) -> No
 def test_report_contains_required_sections(client: TestClient, snapshot: dict[str, Any]) -> None:
     body = client.post("/api/report", json=snapshot).text
 
-    assert "收益概况" in body
-    assert "收益归因" in body
     assert snapshot["fund"]["name"] in body
+    for section in (
+        "基金信息",
+        "净值表现",
+        "涨跌统计",
+        "持仓明细",
+        "持仓变动",
+        "收益归因",
+        "相关事件",
+        "数据来源与口径",
+    ):
+        assert section in body, f"缺少章节：{section}"
 
 
 def test_report_numbers_match_review(client: TestClient, snapshot: dict[str, Any]) -> None:
@@ -70,6 +79,33 @@ def test_report_numbers_match_review(client: TestClient, snapshot: dict[str, Any
     brinson = snapshot["results"]["attribution.brinson"]["data"]
     assert _percent(brinson["residual_return"]) in body
     assert _percent(brinson["coverage"]) in body
+
+    momentum = snapshot["results"]["example.momentum_summary"]["data"]
+    assert str(momentum["up_days"]) in body
+    assert _percent(momentum["up_ratio"]) in body
+
+
+def test_report_includes_attribution_reconcile(
+    client: TestClient, snapshot: dict[str, Any]
+) -> None:
+    """归因对账：持仓贡献合计与未被解释收益之和应等于基金区间收益。"""
+    brinson = snapshot["results"]["attribution.brinson"]["data"]
+    total = brinson["total_contribution"] + brinson["residual_return"]
+    assert abs(total - brinson["fund_return"]) < 1e-6
+
+    body = client.post("/api/report", json=snapshot).text
+    assert "持仓贡献合计" in body
+    assert "未被解释收益" in body
+    assert "持仓覆盖度" in body
+
+
+def test_report_lists_holdings(client: TestClient, snapshot: dict[str, Any]) -> None:
+    body = client.post("/api/report", json=snapshot).text
+
+    for row in snapshot["holdings"]:
+        assert row["name"] in body
+        assert str(row["code"]) in body
+    assert "前十大合计权重" in body
 
 
 def test_report_is_self_contained(client: TestClient, snapshot: dict[str, Any]) -> None:
@@ -116,7 +152,7 @@ def test_report_lists_errors(snapshot: dict[str, Any]) -> None:
     snapshot["errors"] = ["持仓数据不可用：akshare 未安装"]
     document = render(snapshot)
 
-    assert "数据说明" in document
+    assert "数据处理说明" in document
     assert "持仓数据不可用" in document
 
 
