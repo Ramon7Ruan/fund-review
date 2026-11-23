@@ -305,6 +305,8 @@ def _holdings_section(holdings: list[Any], compare: dict[str, Any]) -> str:
     )
 
     bits = [f"前十大合计权重 {_pct(total_weight, signed=False)}"]
+    if len(holdings) > 10:
+        bits.append(f"页面披露 {len(holdings)} 条，此处按前十大取 10 条")
     quarter = compare.get("current_quarter")
     if quarter:
         bits.append(f"披露期次 {quarter}")
@@ -320,7 +322,7 @@ def _changes_section(changes: list[dict[str, Any]]) -> str:
         return _section("持仓变动", '<p class="empty">未取得跨期持仓对比数据。</p>')
 
     rows: list[str] = []
-    for item in changes[:10]:
+    for item in changes:
         row = _dict(item)
         delta = _float(row.get("delta"))
         name = _esc(str(row.get("name") or ""))
@@ -438,15 +440,21 @@ def _events_section(events: dict[str, Any]) -> str:
     if not items:
         return _section("相关事件", f'<p class="empty">{_esc(EVENT_DISCLAIMER)}</p>')
 
+    total = len(items)
+    shown = items[:12]
     rows: list[str] = []
-    for item in items[:12]:
+    for item in shown:
         row = _dict(item)
-        url = str(row.get("url") or "")
+        url = _safe_url(str(row.get("url") or ""))
         title = _esc(str(row.get("title") or ""))
         date_text = _esc(str(row.get("date") or ""))
         related = _esc(str(row.get("related_code") or "—"))
         source = _esc(str(row.get("source") or ""))
-        linked = f'<a href="{_esc(url)}">{title}</a>' if url else title
+        linked = (
+            f'<a href="{_esc(url)}" target="_blank" rel="noopener noreferrer">{title}</a>'
+            if url
+            else title
+        )
         rows.append(
             "<tr>"
             f'<td class="nowrap">{date_text}</td>'
@@ -462,11 +470,13 @@ def _events_section(events: dict[str, Any]) -> str:
         '<th style="width:76px">相关代码</th><th style="width:70px">来源</th>'
         "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
     )
+    parts = [EVENT_DISCLAIMER]
     dropped = events.get("dropped")
-    tail = EVENT_DISCLAIMER
     if dropped:
-        tail = tail + f"另有 {dropped} 条未通过可核验筛选，未展示。"
-    body = table + f'<p class="note">{_esc(tail)}</p>'
+        parts.append(f"另有 {dropped} 条未通过可核验筛选，未展示。")
+    if total > len(shown):
+        parts.append(f"共 {total} 条可展示事件，此处列出最近 {len(shown)} 条。")
+    body = table + f'<p class="note">{_esc(" ".join(parts))}</p>'
     return _section("相关事件", body)
 
 
@@ -604,6 +614,12 @@ def _return_color(value: float | None) -> str:
     if value is None or value == 0:
         return FLAT_COLOR
     return UP_COLOR if value > 0 else DOWN_COLOR
+
+
+def _safe_url(value: str) -> str:
+    """只允许 http/https 链接；其他协议返回空串，按纯文本渲染。"""
+    url = value.strip()
+    return url if url.startswith(("http://", "https://")) else ""
 
 
 def _esc(value: str) -> str:

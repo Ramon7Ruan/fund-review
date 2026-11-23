@@ -162,3 +162,75 @@ def test_report_handles_empty_nav(snapshot: dict[str, Any]) -> None:
     document = render(snapshot)
 
     assert "无法绘制走势" in document
+
+
+def test_report_rejects_javascript_url(snapshot: dict[str, Any]) -> None:
+    """事件链接只允许 http/https，其他协议不能进入 href。"""
+    events = snapshot["results"]["attribution.events"]["data"]
+    events["items"] = [
+        {
+            "date": "2026-10-30",
+            "title": "恶意链接",
+            "url": "javascript:alert(1)",
+            "related_code": "600519",
+            "source": "测试",
+        }
+    ]
+
+    document = render(snapshot)
+
+    assert 'href="javascript:' not in document
+    assert "javascript:alert(1)" not in document
+    assert "恶意链接" in document
+
+
+def test_report_notes_event_truncation(snapshot: dict[str, Any]) -> None:
+    """事件超过展示上限时，必须说明总数与展示条数。"""
+    events = snapshot["results"]["attribution.events"]["data"]
+    events["items"] = [
+        {
+            "date": f"2026-10-{index + 1:02d}",
+            "title": f"公告 {index}",
+            "url": "https://example.com/notice",
+            "related_code": "600519",
+            "source": "东方财富",
+        }
+        for index in range(30)
+    ]
+
+    document = render(snapshot)
+
+    assert "共 30 条可展示事件" in document
+    assert "最近 12 条" in document
+
+
+def test_report_lists_all_changes(snapshot: dict[str, Any]) -> None:
+    """持仓变动数量不多时全部列出，不能静默截断。"""
+    snapshot["holdings_changes"] = [
+        {
+            "code": f"{index:06d}",
+            "name": f"股票{index}",
+            "industry": "食品饮料",
+            "current_weight": 0.01,
+            "previous_weight": 0.005,
+            "delta": 0.005,
+            "status": "increased",
+        }
+        for index in range(11)
+    ]
+
+    document = render(snapshot)
+
+    assert "股票10" in document
+
+
+def test_report_notes_holdings_scope(snapshot: dict[str, Any]) -> None:
+    """披露条数超过前十大时，说明报告只取前十条，避免与页面读数混淆。"""
+    snapshot["holdings"] = [
+        {"code": f"{index:06d}", "name": f"股{index}", "weight": 0.05, "quarter": "Q3"}
+        for index in range(13)
+    ]
+
+    document = render(snapshot)
+
+    assert "页面披露 13 条" in document
