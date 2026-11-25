@@ -10,6 +10,7 @@ import type { EChartsOption } from "echarts";
 import { useEffect, useMemo, useRef } from "react";
 
 import type { PanelProps } from "../../core/features";
+import { disclosurePeriod, netValuePeriod, PeriodBadge } from "./PeriodBadge";
 
 const UP = "#dc2626";
 const DOWN = "#059669";
@@ -568,7 +569,9 @@ function EmptyState({ title, hint }: { title: string; hint: string }) {
   );
 }
 
-export default function Panel({ result, month, loading }: PanelProps & { loading?: boolean }) {
+export default function Panel({
+  result, month, loading, meta, holdings, navSeries,
+}: PanelProps & { loading?: boolean }) {
   const data = (result?.data ?? {}) as AttributionData;
   const items = Array.isArray(data.items) ? data.items : [];
   const industries = Array.isArray(data.industries) ? data.industries : [];
@@ -652,6 +655,14 @@ export default function Panel({ result, month, loading }: PanelProps & { loading
         </span>
       </div>
 
+      <div className="mt-2 flex flex-wrap gap-2">
+        <PeriodBadge label="归因收益区间" value={netValuePeriod(navSeries)} />
+        <PeriodBadge
+          label="归因持仓披露期"
+          value={disclosurePeriod(meta.holdings, holdings[0]?.quarter)}
+          kind="disclosure"
+        />
+      </div>
       <dl className="mt-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
         <div>
           <dt className="label">基金区间收益</dt>

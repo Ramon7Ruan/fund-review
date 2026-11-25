@@ -11,6 +11,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import type { Holding, HoldingChange, HoldingChangeStatus } from "../../core/api";
 import type { PanelProps } from "../../core/features";
+import { disclosurePeriod, PeriodBadge } from "./PeriodBadge";
 
 const NEUTRAL = "#2563eb";
 
@@ -195,6 +196,14 @@ export default function Panel({
   const addedCount = changes.filter((item) => item.status === "added").length;
   const removedCount = changes.filter((item) => item.status === "removed").length;
   const compareNote = holdingsCompare?.note ?? "";
+  const snapshotQuarter = holdingsMeta.quarter || rows[0]?.quarter;
+  const fromQuarter = holdingsCompare?.previous_quarter;
+  const toQuarter = holdingsCompare?.current_quarter;
+  const comparisonPeriod = fromQuarter && toQuarter
+    ? `${fromQuarter} → ${toQuarter}`
+    : "对比期未提供";
+  const periodsDiffer = Boolean(snapshotQuarter && toQuarter && snapshotQuarter !== toQuarter);
+  const showRowChanges = Boolean(snapshotQuarter && toQuarter === snapshotQuarter);
 
   const totalWeight = rows.reduce((sum, row) => sum + (Number.isFinite(row.weight) ? row.weight : 0), 0);
   const chartRows = useMemo(
@@ -228,11 +237,21 @@ export default function Panel({
     <div className="card h-full">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold text-ink-900">持仓变动</h3>
-        <span className="text-xs text-ink-500">
-          {holdingsMeta.quarter || "最近一期披露"} · {rows.length} 只
-          {holdingsCompare?.previous_quarter ? " · 对比上一期" : ""}
-        </span>
+        <span className="text-xs text-ink-500">{rows.length} 只</span>
       </div>
+      <div className="mt-2 flex flex-wrap gap-2">
+        <PeriodBadge
+          label="持仓明细披露期"
+          value={disclosurePeriod(meta.holdings, rows[0]?.quarter)}
+          kind="disclosure"
+        />
+        <PeriodBadge label="变动对比期" value={comparisonPeriod} kind="comparison" />
+      </div>
+      {periodsDiffer && (
+        <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+          持仓明细与变动对比的期次不同。增减数据请看下方的跨期变动列表。
+        </p>
+      )}
 
       {compareNote && <p className="mt-2 text-xs text-ink-500">{compareNote}</p>}
 
@@ -299,7 +318,7 @@ export default function Panel({
               <th className="py-1 pr-3 font-medium">股票</th>
               <th className="py-1 pr-3 font-medium">行业</th>
               <th className="py-1 pr-3 text-right font-medium">披露权重</th>
-              <th className="py-1 text-right font-medium">较上期</th>
+              {showRowChanges && <th className="py-1 text-right font-medium">较上期</th>}
             </tr>
           </thead>
           <tbody className="text-ink-700">
@@ -315,7 +334,7 @@ export default function Panel({
                     </td>
                     <td className="py-1 pr-3">{row.industry?.trim() || "未映射"}</td>
                     <td className="py-1 pr-3 text-right tabular-nums">{pct(row.weight)}</td>
-                    <td className="py-1 text-right tabular-nums">
+                    {showRowChanges && <td className="py-1 text-right tabular-nums">
                       {change && change.status !== "unchanged" ? (
                         <span className={change.delta >= 0 ? "text-red-600" : "text-emerald-600"}>
                           {signedPct(change.delta)}
@@ -323,7 +342,7 @@ export default function Panel({
                       ) : (
                         "—"
                       )}
-                    </td>
+                    </td>}
                   </tr>
                 );
               })}
@@ -359,7 +378,7 @@ export default function Panel({
       )}
 
       <ul className="mt-3 list-disc space-y-1 pl-4 text-xs text-ink-500">
-        <li>权重取最近一期季报披露值，未做区间前漂移；季报只披露前十大重仓，合计不足 100% 属正常，差额计入残差。</li>
+        <li>权重取上方标记的持仓快照，未做区间前漂移；未披露持仓的影响计入归因残差。</li>
         {changes.length > 0 ? (
           <li>变动按两期前十大截取后比较；未进入前十大的持仓不参与变动判断，避免用不同披露口径造出假清仓。</li>
         ) : (

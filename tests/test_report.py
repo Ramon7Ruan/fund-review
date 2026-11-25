@@ -68,6 +68,21 @@ def test_report_contains_required_sections(client: TestClient, snapshot: dict[st
         assert section in body, f"缺少章节：{section}"
 
 
+def test_report_labels_different_disclosure_periods(snapshot: dict[str, Any]) -> None:
+    snapshot["meta"]["holdings"] = {"quarter": "2026年1季度"}
+    snapshot["holdings_compare"] = {
+        "previous_quarter": "2026年2季度",
+        "current_quarter": "2026年3季度",
+    }
+    snapshot["holdings_changes"] = [{"code": "600519", "delta": 0.02}]
+    snapshot["results"]["attribution.brinson"] = {"status": "ready", "data": {"fund_return": 0.1}}
+    body = render(snapshot)
+
+    assert "持仓明细披露期 <strong>2026年1季度</strong>" in body
+    assert "归因持仓披露期 <strong>2026年1季度</strong>" in body
+    assert "变动对比期 <strong>2026年2季度 → 2026年3季度</strong>" in body
+
+
 def test_report_numbers_match_review(client: TestClient, snapshot: dict[str, Any]) -> None:
     """报告数字必须与 /api/review 完全一致：同一份快照，不做二次计算。"""
     body = client.post("/api/report", json=snapshot).text

@@ -21,6 +21,7 @@ import type { PanelProps } from "../../core/features";
 import Attribution from "./Attribution";
 import Holdings from "./Holdings";
 import { NavDrawdownChart } from "./NavDrawdownChart";
+import { disclosurePeriod, netValuePeriod, PeriodBadge } from "./PeriodBadge";
 import { TradingCalendar } from "./TradingCalendar";
 
 const GREEN = "#059669";
@@ -103,7 +104,8 @@ export default function Panel({
   holdingsCompare,
   meta,
 }: PanelProps) {
-  const quarter = String((meta?.holdings as { quarter?: string } | undefined)?.quarter ?? "");
+  const holdingPeriod = disclosurePeriod(meta?.holdings, holdings[0]?.quarter);
+  const navPeriod = netValuePeriod(navSeries);
   const navSource = String((meta?.nav as { source?: string } | undefined)?.source ?? "");
 
   // 工作台按 manifest.resultId 取 attribution.brinson 的结果并传入，所以这里直接用；
@@ -166,12 +168,12 @@ export default function Panel({
           <Kpi
             label="披露持仓"
             value={`${holdings.length} 只`}
-            hint={quarter || "最近一期季报"}
+            hint={holdingPeriod}
           />
           <Kpi
             label="披露权重合计"
             value={pct(weightSum)}
-            hint="前十大占基金净资产比例之和"
+            hint="返回持仓占基金净资产比例之和"
           />
         </div>
 
@@ -182,14 +184,14 @@ export default function Panel({
         )}
 
         <p className="mt-3 text-xs text-ink-500">
-          收益按分红复权口径由后端计算；持仓为最近一期季报披露的前十大，未披露部分在拆解里以残差列示。
+          回顾月份是净值和收益的观察窗口。持仓披露期、归因使用的持仓披露期和变动对比期见各模块标记。
         </p>
       </section>
 
       <section className="card">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h4 className="text-sm font-semibold text-ink-900">净值与回撤</h4>
-          <span className="text-xs text-ink-500">{month} · {navSeries.length} 个交易日</span>
+          <PeriodBadge label="净值区间" value={navPeriod} />
         </div>
         <div className="mt-3">
           {navSeries.length > 1 ? (
@@ -230,8 +232,9 @@ export default function Panel({
       <section className="card">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h4 className="text-sm font-semibold text-ink-900">交易日历</h4>
-          <span className="text-xs text-ink-500">红涨绿跌 · 单位净值未复权，除息日会出现跳变</span>
+          <PeriodBadge label="日历月份" value={month} />
         </div>
+        <p className="mt-2 text-xs text-ink-500">红涨绿跌 · 单位净值未复权，除息日会出现跳变</p>
         <div className="mt-3">
           {navSeries.length > 1 ? (
             <div className="max-w-2xl">

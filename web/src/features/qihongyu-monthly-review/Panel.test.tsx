@@ -71,6 +71,23 @@ const readyResult = {
 };
 
 describe("月度回顾视图插件", () => {
+  it("分别标记归因持仓和跨期对比，避免混用不同披露期的增减", () => {
+    render(
+      <Panel
+        {...baseProps}
+        result={readyResult}
+        navSeries={navSeries}
+        holdings={holdings}
+        meta={{ holdings: { quarter: "2026年1季度" } }}
+        holdingsCompare={{ previous_quarter: "2026年2季度", current_quarter: "2026年3季度" }}
+      />,
+    );
+    expect(screen.getByText("归因持仓披露期").parentElement).toHaveTextContent("2026年1季度");
+    expect(screen.getByText("持仓明细披露期").parentElement).toHaveTextContent("2026年1季度");
+    expect(screen.getByText("变动对比期").parentElement).toHaveTextContent("2026年2季度 → 2026年3季度");
+    expect(screen.queryByRole("columnheader", { name: "较上期" })).not.toBeInTheDocument();
+  });
+
   it("整月没有数据时给引导，不白屏", () => {
     render(<Panel {...baseProps} />);
     expect(screen.getByText("这个月还没有可回顾的数据")).toBeInTheDocument();
