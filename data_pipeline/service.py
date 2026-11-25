@@ -9,6 +9,8 @@ from __future__ import annotations
 import csv
 import io
 import json
+from calendar import monthrange
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +34,13 @@ INDUSTRY_SNAPSHOT_TTL_SECONDS = 600
 INDUSTRY_SNAPSHOT_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "snapshots" / "sw_industry_map.json"
 )
+
+
+def _month_bounds(month: str) -> tuple[str, str]:
+    year, number = map(int, month.split("-"))
+    start = date(year, number, 1)
+    end = date(year, number, monthrange(year, number)[1])
+    return start.isoformat(), end.isoformat()
 
 
 def load_industry_snapshot(path: Path | None = None) -> dict[str, Any] | None:
@@ -315,6 +324,7 @@ class DataService:
         missing: list[str] = []
         sources: set[str] = set()
         cached_hits = 0
+        start, end = _month_bounds(month)
 
         for code in sorted(wanted):
             key = f"quotes:{code}:{month}"
@@ -324,7 +334,7 @@ class DataService:
                 cached_hits += 1
                 continue
             try:
-                bars, source = akshare_source.fetch_stock_bars(code, f"{month}-01", f"{month}-31")
+                bars, source = akshare_source.fetch_stock_bars(code, start, end)
             except SourceUnavailable as exc:
                 missing.append(f"{code}：{exc}")
                 continue
@@ -460,13 +470,13 @@ class DataService:
         数据层只负责抓取与归一化；是否展示由 engine.attribution.events 的
         四条准入规则决定，抓到的原始公告不直接等同于可展示事件。
         """
-        key = f"events:{fund_code}:{month}"
+        codes = sorted({str(c).zfill(6) for c in holding_codes})
+        key = f"events:v2:{fund_code}:{month}:{','.join(codes)}"
         cached = self.cache.get(key)
         if cached is not None:
-            return cached, {"source": "cache", "cached": True, "count": len(cached), "missing": []}
+            return cached["rows"], {**cached["meta"], "cached": True}
 
-        compact = month.replace("-", "")
-        start, end = f"{compact}01", f"{compact}31"
+        start, end = _month_bounds(month)
         raw: list[dict[str, Any]] = []
         missing: list[str] = []
 
@@ -475,7 +485,7 @@ class DataService:
         except SourceUnavailable as exc:
             missing.append(f"基金公告：{exc}")
 
-        for code in sorted({str(c).zfill(6) for c in holding_codes}):
+        for code in codes:
             try:
                 raw.extend(akshare_source.fetch_stock_announcements(code, start, end))
             except SourceUnavailable as exc:
@@ -484,13 +494,15 @@ class DataService:
         if not raw and missing:
             raise SourceUnavailable("；".join(missing))
 
-        self.cache.set(key, raw, ttl_seconds=NAV_TTL_SECONDS)
-        return raw, {
+        meta = {
             "source": "akshare.eastmoney",
             "cached": False,
             "count": len(raw),
             "missing": missing,
         }
+        if not missing:
+            self.cache.set(key, {"rows": raw, "meta": meta}, ttl_seconds=NAV_TTL_SECONDS)
+        return raw, meta
 
     def close(self) -> None:
         if self._fund_store is not None:

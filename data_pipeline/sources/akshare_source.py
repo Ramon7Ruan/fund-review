@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
+
 
 class SourceUnavailable(RuntimeError):
     """数据源不可用（未安装依赖、接口变更、网络失败）。"""
@@ -107,7 +109,14 @@ def fetch_stock_bars(code: str, start_date: str, end_date: str) -> tuple[list[di
     df = None
     source = "sina"
     try:
-        df = ak.stock_zh_a_daily(symbol=symbol, start_date=start_date, end_date=end_date)
+        fetch_sina = getattr(ak, "stock_zh_a_hist_sina", None) or ak.stock_zh_a_daily
+        df = fetch_sina(
+            symbol=symbol,
+            start_date=start_date.replace("-", ""),
+            end_date=end_date.replace("-", ""),
+        )
+        if df is None or df.empty:
+            raise SourceUnavailable(f"{code} 新浪无个股行情")
     except Exception:  # noqa: BLE001 - 主源失败转备源
         try:
             df = ak.stock_zh_a_hist_tx(symbol=symbol, start_date=start_date, end_date=end_date)
@@ -214,14 +223,46 @@ def fetch_announcements(day: str) -> list[dict[str, Any]]:
     return rows
 
 
+def _stock_announcements_confirm_empty(code: str, start_date: str, end_date: str) -> bool:
+    """AKShare 处理零条公告时会抛 KeyError，向东财核实是否确实为空。"""
+    try:
+        response = httpx.get(
+            "https://np-anotice-stock.eastmoney.com/api/security/ann",
+            params={
+                "sr": -1,
+                "page_size": 1,
+                "page_index": 1,
+                "ann_type": "A",
+                "client_source": "web",
+                "f_node": 0,
+                "s_node": 0,
+                "stock_list": code,
+                "begin_time": start_date,
+                "end_time": end_date,
+            },
+            timeout=8,
+        )
+        response.raise_for_status()
+        payload = response.json()
+    except (httpx.HTTPError, ValueError):
+        return False
+    if not isinstance(payload, dict) or payload.get("success") != 1:
+        return False
+    data = payload.get("data")
+    return isinstance(data, dict) and data.get("total_hits") == 0 and data.get("list") == []
+
+
 def fetch_stock_announcements(code: str, start_date: str, end_date: str) -> list[dict[str, Any]]:
-    """按个股抓取公告，日期为 YYYYMMDD。比按日抓全市场更精准、体量更小。"""
+    """按个股抓取公告，日期为 YYYY-MM-DD。"""
     ak = _akshare()
     try:
         df = ak.stock_individual_notice_report(
-            security=code, symbol="全部", begin_date=start_date, end_date=end_date
+            symbol=code, indicator="全部", start_date=start_date, end_date=end_date
         )
     except Exception as exc:  # noqa: BLE001
+        if isinstance(exc, KeyError) and exc.args == ("代码",):
+            if _stock_announcements_confirm_empty(code, start_date, end_date):
+                return []
         raise SourceUnavailable(f"{code} 公告抓取失败：{type(exc).__name__}") from exc
     if df is None or df.empty:
         return []
