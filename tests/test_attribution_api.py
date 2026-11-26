@@ -2,9 +2,35 @@
 
 from __future__ import annotations
 
+import json
+
 from api.routes.review import review
 from api.schemas import ReviewRequest
+from data_pipeline.service import INDUSTRY_BARS_SNAPSHOT_PATH, DataService
+from data_pipeline.sources import akshare_source
+from data_pipeline.sources.akshare_source import SourceUnavailable
 from tests.fakes import FakeService
+
+
+def test_sw_snapshot_outage_still_produces_industry_attribution(monkeypatch):
+    def offline(*args):
+        raise SourceUnavailable("申万暂不可用")
+
+    for name in ("fetch_sw_industries", "fetch_sw_constituents", "fetch_sw_index_bars"):
+        monkeypatch.setattr(akshare_source, name, offline)
+    service = FakeService()
+    with_data = DataService()
+    monkeypatch.setattr(service, "get_industry_map", with_data.get_industry_map)
+    monkeypatch.setattr(service, "get_industry_returns", with_data.get_industry_returns)
+    snapshot = json.loads(INDUSTRY_BARS_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    request = ReviewRequest(fund_code="110022", month=snapshot["window_end"][:7])
+    try:
+        response = review(request, service)
+    finally:
+        with_data.close()
+    assert response.meta["industry_map"]["source"] == "snapshot:akshare.sw"
+    assert response.meta["benchmark_returns"]["source"] == "snapshot:akshare.sw"
+    assert response.results["attribution.brinson"].data["items"][0]["industry_part"] is not None
 
 
 def test_attribution_plugin_ready_and_reconciled():

@@ -169,15 +169,18 @@ def fetch_sw_industries() -> list[dict[str, Any]]:
     """申万一级行业列表：[{industry, sw_code}]。"""
     ak = _akshare()
     try:
-        df = ak.sw_index_first_info()
+        df = ak.index_first_info_sw()
+        if df is None or df.empty:
+            raise ValueError("申万行业列表为空")
+        return [
+            {
+                "industry": str(row["行业名称"]).strip(),
+                "sw_code": str(row["行业代码"]).split(".")[0],
+            }
+            for _, row in df.iterrows()
+        ]
     except Exception as exc:  # noqa: BLE001
         raise SourceUnavailable(f"申万行业列表抓取失败：{type(exc).__name__}") from exc
-    if df is None or df.empty:
-        raise SourceUnavailable("申万行业列表为空")
-    return [
-        {"industry": str(row["行业名称"]), "sw_code": str(row["行业代码"]).split(".")[0]}
-        for _, row in df.iterrows()
-    ]
 
 
 def fetch_sw_constituents(sw_code: str) -> list[dict[str, Any]]:
