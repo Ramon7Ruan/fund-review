@@ -53,6 +53,20 @@ def render(snapshot: dict[str, Any], generated_at: datetime | None = None) -> st
     holdings = _list(snapshot.get("holdings"))
     errors = _list(snapshot.get("errors"))
     meta = _dict(snapshot.get("meta"))
+    compare = _dict(snapshot.get("holdings_compare"))
+    holding_meta = _dict(meta.get("holdings"))
+    holding_quarter = _dict(holdings[0]).get("quarter") if holdings else None
+    disclosure = str(holding_meta.get("quarter") or holding_quarter or "披露期未提供")
+    if holding_meta.get("source") == "local_import":
+        disclosure = f"本地快照 · {holding_meta.get('as_of') or '日期未提供'}"
+    nav_period = "暂无净值日期"
+    if nav_series:
+        first_date = _dict(nav_series[0]).get("date")
+        last_date = _dict(nav_series[-1]).get("date")
+        if first_date and last_date:
+            nav_period = (
+                str(first_date) if first_date == last_date else f"{first_date} 至 {last_date}"
+            )
 
     interval = _payload(results, _PLUGIN_INTERVAL)
     brinson = _payload(results, _PLUGIN_BRINSON)
@@ -68,11 +82,11 @@ def render(snapshot: dict[str, Any], generated_at: datetime | None = None) -> st
             _header(fund, month),
             _lede_section(interval, momentum, nav_series),
             _profile_section(fund, month, interval, meta),
-            _nav_section(interval, nav_series),
+            _nav_section(interval, nav_series, nav_period),
             _momentum_section(momentum),
-            _holdings_section(holdings, _dict(snapshot.get("holdings_compare"))),
-            _changes_section(_list(snapshot.get("holdings_changes"))),
-            _brinson_section(brinson),
+            _holdings_section(holdings, disclosure),
+            _changes_section(_list(snapshot.get("holdings_changes")), compare),
+            _brinson_section(brinson, nav_period, disclosure),
             _events_section(events),
             _source_section(meta, results),
             _errors_section(errors),
@@ -181,7 +195,9 @@ def _profile_section(
     return _section("基金信息", _kv_table(rows))
 
 
-def _nav_section(interval: dict[str, Any], nav_series: list[dict[str, Any]]) -> str:
+def _nav_section(
+    interval: dict[str, Any], nav_series: list[dict[str, Any]], nav_period: str
+) -> str:
     if not interval:
         return _section("净值表现", '<p class="empty">本期区间收益数据不可用。</p>')
 
@@ -198,7 +214,7 @@ def _nav_section(interval: dict[str, Any], nav_series: list[dict[str, Any]]) -> 
     body = f'<div class="metrics">{cards}</div>'
     body += _svg_chart(nav_series, period_return)
     body += '<p class="note">走势按报告期内每个披露日绘制，缺口为节假日与非披露日。</p>'
-    return _section("净值表现", body)
+    return _section("净值表现", _period_badge("净值区间", nav_period) + body)
 
 
 def _svg_chart(series: list[dict[str, Any]], period_return: float | None) -> str:
@@ -274,7 +290,7 @@ def _momentum_section(momentum: dict[str, Any]) -> str:
     return _section("涨跌统计", f'<div class="metrics">{cards}</div>' + note)
 
 
-def _holdings_section(holdings: list[Any], compare: dict[str, Any]) -> str:
+def _holdings_section(holdings: list[Any], disclosure: str) -> str:
     if not holdings:
         return _section("持仓明细", '<p class="empty">本期未取得持仓数据。</p>')
 
@@ -307,17 +323,11 @@ def _holdings_section(holdings: list[Any], compare: dict[str, Any]) -> str:
     bits = [f"前十大合计权重 {_pct(total_weight, signed=False)}"]
     if len(holdings) > 10:
         bits.append(f"页面披露 {len(holdings)} 条，此处按前十大取 10 条")
-    quarter = compare.get("current_quarter")
-    if quarter:
-        bits.append(f"披露期次 {quarter}")
     body = table + f'<p class="note">{" · ".join(_esc(x) for x in bits)}</p>'
-    note = compare.get("note")
-    if note:
-        body += f'<p class="note">{_esc(str(note))}</p>'
-    return _section("持仓明细（前十大）", body)
+    return _section("持仓明细（前十大）", _period_badge("持仓明细披露期", disclosure) + body)
 
 
-def _changes_section(changes: list[dict[str, Any]]) -> str:
+def _changes_section(changes: list[dict[str, Any]], compare: dict[str, Any]) -> str:
     if not changes:
         return _section("持仓变动", '<p class="empty">未取得跨期持仓对比数据。</p>')
 
@@ -347,10 +357,20 @@ def _changes_section(changes: list[dict[str, Any]]) -> str:
         '<th class="num">上期权重</th><th class="num">本期权重</th><th class="num">变动</th>'
         "</tr></thead><tbody>" + "".join(rows) + "</tbody></table>"
     )
-    return _section("持仓变动（前十大同口径）", table)
+    previous_quarter = compare.get("previous_quarter")
+    current_quarter = compare.get("current_quarter")
+    period = (
+        f"{previous_quarter} → {current_quarter}"
+        if previous_quarter and current_quarter
+        else "对比期未提供"
+    )
+    note = compare.get("note")
+    if note:
+        table += f'<p class="note">{_esc(str(note))}</p>'
+    return _section("持仓变动（前十大同口径）", _period_badge("变动对比期", period) + table)
 
 
-def _brinson_section(brinson: dict[str, Any]) -> str:
+def _brinson_section(brinson: dict[str, Any], nav_period: str, disclosure: str) -> str:
     if not brinson:
         empty = '<p class="empty">本期归因数据未生成（可能缺少持仓或行情数据）。</p>'
         return _section("收益归因", empty)
@@ -380,7 +400,9 @@ def _brinson_section(brinson: dict[str, Any]) -> str:
     )
     tail = "归因方法 " + method + "。持仓贡献合计与未被解释收益之和等于基金区间收益："
     body += f'<p class="note">{_esc(tail + check)}，可自行对账。</p>'
-    return _section("收益归因", body)
+    periods = _period_badge("归因收益区间", nav_period)
+    periods += _period_badge("归因持仓披露期", disclosure)
+    return _section("收益归因", periods + body)
 
 
 def _industry_table(industries: list[Any]) -> str:
@@ -568,6 +590,10 @@ def _section(title: str, body: str) -> str:
     return f'<section class="block"><h2>{_esc(title)}</h2>{body}</section>\n'
 
 
+def _period_badge(label: str, value: str) -> str:
+    return f'<span class="period">{_esc(label)} <strong>{_esc(value)}</strong></span>'
+
+
 def _payload(results: dict[str, Any], plugin_id: str) -> dict[str, Any]:
     item = _dict(results.get(plugin_id))
     if item.get("status") != "ready":
@@ -656,6 +682,11 @@ h1 { margin: 0; font-size: 19px; font-weight: 600; letter-spacing: 0.2px; }
 }
 .chip-label { font-size: 10.5px; color: #888780; }
 .chip-value { font-size: 12.5px; font-weight: 600; font-family: ui-monospace, Menlo, monospace; }
+.period {
+  display: inline-block; margin: 0 6px 8px 0; padding: 3px 8px; border-radius: 5px;
+  border: 1px solid #cbd5e1; color: #1e3a5f; background: #f1f5f9; font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
 .block { margin: 0 0 14px; page-break-inside: avoid; }
 h2 {
   font-size: 12.5px; font-weight: 600; margin: 0 0 7px;
