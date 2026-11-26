@@ -99,7 +99,9 @@ def test_quotes_and_events_use_actual_month_end(service, monkeypatch, month, end
     monkeypatch.setattr(akshare_source, "fetch_stock_bars", quotes)
     monkeypatch.setattr(akshare_source, "fetch_fund_announcements", lambda _: [])
     monkeypatch.setattr(
-        akshare_source, "_akshare", lambda: SimpleNamespace(stock_individual_notice_report=notices)
+        akshare_source,
+        "_akshare",
+        lambda: SimpleNamespace(__version__="1.20.65", stock_individual_notice_report=notices),
     )
     bars, _ = service.get_quotes(["600519"], month)
     events, meta = service.get_events("110022", ["600519"], month)
@@ -138,7 +140,9 @@ def test_notice_missing_columns_only_degrade_to_empty_when_confirmed(monkeypatch
         )
 
     monkeypatch.setattr(
-        akshare_source, "_akshare", lambda: SimpleNamespace(stock_individual_notice_report=fail)
+        akshare_source,
+        "_akshare",
+        lambda: SimpleNamespace(__version__="1.20.65", stock_individual_notice_report=fail),
     )
     monkeypatch.setattr(akshare_source.httpx, "get", verify)
     args = ("600519", "2026-09-01", "2026-09-30")
@@ -220,3 +224,24 @@ def test_industry_returns_missing(service, monkeypatch):
     values, meta = service.get_industry_returns("2026-10", ["食品饮料"])
     assert values == {}
     assert any("食品饮料" in item for item in meta["missing"])
+
+
+def test_announcements_require_min_akshare_version(monkeypatch):
+    """旧版 akshare 的公告签名不同，必须在调用前给出明确的版本提示。"""
+
+    class OldAk:
+        __version__ = "1.18.94"
+
+    monkeypatch.setattr(akshare_source, "_akshare", lambda: OldAk())
+
+    with pytest.raises(SourceUnavailable) as exc:
+        akshare_source.fetch_stock_announcements("600519", "2026-09-01", "2026-09-30")
+
+    message = str(exc.value)
+    assert "1.20.65" in message
+    assert "1.18.94" in message
+
+
+def test_version_tuple_handles_rc_suffix():
+    assert akshare_source._version_tuple("1.20.65rc1") == (1, 20, 65)
+    assert akshare_source._version_tuple("1.18.94") < akshare_source._version_tuple("1.20.65")

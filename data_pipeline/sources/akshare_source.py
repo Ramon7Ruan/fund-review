@@ -8,9 +8,14 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import httpx
+
+# 个股公告接口在 1.20.65 才改成 symbol/indicator/start_date/end_date 签名；
+# 更早版本是 security/symbol/begin_date/end_date，直接调用会 TypeError。
+MIN_AKSHARE_VERSION = "1.20.65"
 
 
 class SourceUnavailable(RuntimeError):
@@ -23,6 +28,22 @@ def _akshare():
     except ImportError as exc:  # pragma: no cover - 取决运行环境
         raise SourceUnavailable("未安装 akshare，无法抓取真实数据") from exc
     return ak
+
+
+def _version_tuple(text: str) -> tuple[int, ...]:
+    numbers = re.findall(r"\d+", str(text))
+    return tuple(int(item) for item in numbers[:3])
+
+
+def _ensure_akshare_version() -> None:
+    """公告接口有明确的版本下限，旧版本直接给出可执行的提示。"""
+    ak = _akshare()
+    version = str(getattr(ak, "__version__", "0"))
+    if _version_tuple(version) < _version_tuple(MIN_AKSHARE_VERSION):
+        raise SourceUnavailable(
+            f"个股公告接口需要 akshare>={MIN_AKSHARE_VERSION}，当前为 {version}；"
+            f"请执行 pip install -U 'akshare>={MIN_AKSHARE_VERSION}'"
+        )
 
 
 def fetch_fund_nav(code: str, indicator: str = "单位净值走势") -> list[dict[str, Any]]:
@@ -253,7 +274,8 @@ def _stock_announcements_confirm_empty(code: str, start_date: str, end_date: str
 
 
 def fetch_stock_announcements(code: str, start_date: str, end_date: str) -> list[dict[str, Any]]:
-    """按个股抓取公告，日期为 YYYY-MM-DD。"""
+    """按个股抓取公告，日期为 YYYY-MM-DD。要求 akshare>=1.20.65。"""
+    _ensure_akshare_version()
     ak = _akshare()
     try:
         df = ak.stock_individual_notice_report(

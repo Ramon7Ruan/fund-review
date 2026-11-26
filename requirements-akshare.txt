@@ -1,0 +1,6 @@
+# 真实抓数可选依赖（CI 不安装）
+#
+# 个股公告接口在 akshare 1.20.65 才改成
+# symbol / indicator / start_date / end_date 的签名，
+# 更低版本会在抓取公告时给出明确的升级提示。
+akshare>=1.20.65
