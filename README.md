@@ -48,13 +48,19 @@ make dev       # 同时启动后端 8000 与前端 5173
 
 打开 http://localhost:5173 ，输入基金代码（如 110022）与月份即可生成月度回顾。
 
-真实数据抓取需要额外安装 akshare：
+真实数据抓取需要额外安装 akshare，**版本不得低于 1.20.65**（个股公告接口依赖该版本的参数签名；更低版本会在抓取公告时给出明确的升级提示）：
 
 ```bash
 # 有 uv 时
-uv pip install --python .venv/bin/python akshare
+uv pip install --python .venv/bin/python "akshare>=1.20.65"
 # 没有 uv 时
-.venv/bin/python -m pip install akshare
+.venv/bin/python -m pip install "akshare>=1.20.65"
+```
+
+也可以直接安装可选依赖清单：
+
+```bash
+.venv/bin/python -m pip install -r requirements-akshare.txt
 ```
 
 其他命令：
