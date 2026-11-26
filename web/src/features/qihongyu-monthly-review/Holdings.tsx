@@ -9,6 +9,7 @@ import * as echarts from "echarts";
 import type { EChartsOption } from "echarts";
 import { useEffect, useMemo, useRef } from "react";
 
+import { TermNote } from "../../components/TermNote";
 import type { Holding, HoldingChange, HoldingChangeStatus } from "../../core/api";
 import type { PanelProps } from "../../core/features";
 import { disclosurePeriod, PeriodBadge } from "./PeriodBadge";
@@ -217,7 +218,9 @@ export default function Panel({
   if (rows.length === 0) {
     return (
       <div className="card h-full border-dashed">
-        <h3 className="text-sm font-semibold text-ink-900">持仓变动</h3>
+        <h3 className="text-sm font-semibold text-ink-900">
+          <TermNote term="holdingChanges">持仓变动</TermNote>
+        </h3>
         <p className="mt-3 text-sm text-ink-700">未获取到本月披露的持仓数据</p>
         <p className="mt-1 text-xs text-ink-500">
           可能是该基金当期尚未披露季报，或数据源暂时不可用。换一个月份或基金代码后重试；
@@ -236,8 +239,13 @@ export default function Panel({
   return (
     <div className="card h-full">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold text-ink-900">持仓变动</h3>
-        <span className="text-xs text-ink-500">{rows.length} 只</span>
+        <h3 className="text-sm font-semibold text-ink-900">
+          <TermNote term="holdingChanges">持仓变动</TermNote>
+        </h3>
+        <span className="text-xs text-ink-500">
+          {holdingsMeta.quarter || "最近一期披露"} · {rows.length} 只
+          {holdingsCompare?.previous_quarter ? " · 对比上一期" : ""}
+        </span>
       </div>
       <div className="mt-2 flex flex-wrap gap-2">
         <PeriodBadge
@@ -257,15 +265,21 @@ export default function Panel({
 
       <dl className="mt-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-5">
         <div>
-          <dt className="label">披露权重合计</dt>
+          <dt className="label">
+            <TermNote term="weightSum">披露权重合计</TermNote>
+          </dt>
           <dd className="mt-1 text-base font-semibold text-ink-900">{pct(totalWeight)}</dd>
         </div>
         <div>
-          <dt className="label">覆盖行业</dt>
+          <dt className="label">
+            <TermNote term="industryCount">覆盖行业</TermNote>
+          </dt>
           <dd className="mt-1 text-base font-semibold text-ink-900">{industries.length}</dd>
         </div>
         <div>
-          <dt className="label">新增 / 退出</dt>
+          <dt className="label">
+            <TermNote term="topTenChanges">新增 / 退出</TermNote>
+          </dt>
           <dd className="mt-1 text-base font-semibold text-ink-900">
             {changes.length > 0 ? `${addedCount} / ${removedCount}` : "—"}
           </dd>
@@ -281,7 +295,7 @@ export default function Panel({
 
       <div className="mt-4">
         <div className="text-xs font-medium text-ink-700">
-          本期披露权重{chartRows.length < rows.length ? `（仅展示前 ${chartRows.length} 只）` : ""}
+          <TermNote term="weight">本期披露权重</TermNote>{chartRows.length < rows.length ? `（仅展示前 ${chartRows.length} 只）` : ""}
         </div>
         <Chart
           option={weightChart}
@@ -291,7 +305,9 @@ export default function Panel({
       </div>
 
       <div className="mt-4">
-        <div className="text-xs font-medium text-ink-700">行业分布（按披露权重占比）</div>
+        <div className="text-xs font-medium text-ink-700">
+          <TermNote term="industryWeights">行业分布（按披露权重占比）</TermNote>
+        </div>
         <Chart option={industryChart} height={56} testId="holdings-industry-chart" />
         <ul className="mt-1 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
           {industries.map((bucket, index) => (
@@ -316,9 +332,17 @@ export default function Panel({
           <thead className="text-ink-500">
             <tr className="border-b border-ink-100">
               <th className="py-1 pr-3 font-medium">股票</th>
-              <th className="py-1 pr-3 font-medium">行业</th>
-              <th className="py-1 pr-3 text-right font-medium">披露权重</th>
-              {showRowChanges && <th className="py-1 text-right font-medium">较上期</th>}
+              <th className="py-1 pr-3 font-medium">
+                <TermNote term="industry">行业</TermNote>
+              </th>
+              <th className="py-1 pr-3 text-right font-medium">
+                <TermNote term="weight">披露权重</TermNote>
+              </th>
+              {showRowChanges && (
+                <th className="py-1 text-right font-medium">
+                  <TermNote term="weightDelta">较上期</TermNote>
+                </th>
+              )}
             </tr>
           </thead>
           <tbody className="text-ink-700">
@@ -352,7 +376,9 @@ export default function Panel({
 
       {moved.length > 0 && (
         <div className="mt-4">
-          <div className="text-xs font-medium text-ink-700">本期变化（前十大口径）</div>
+          <div className="text-xs font-medium text-ink-700">
+            <TermNote term="topTenChanges">本期变化（前十大口径）</TermNote>
+          </div>
           <ul className="mt-1 divide-y divide-ink-100/60 text-xs">
             {moved.slice(0, 12).map((item) => (
               <li key={item.code} className="flex items-center justify-between gap-3 py-1">

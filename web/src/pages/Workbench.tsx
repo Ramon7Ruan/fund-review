@@ -3,12 +3,18 @@ import { useMemo, useState } from "react";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { ExportReport } from "../components/ExportReport";
 import { StubCard } from "../components/StubCard";
+import { TermNote } from "../components/TermNote";
 import { api, type ReviewResponse } from "../core/api";
 import { features } from "../core/features";
+import type { ReviewTerm } from "../core/reviewTerms";
 
 type Phase = "idle" | "loading" | "done" | "error";
 
 const CODE_PATTERN = /^\d{6}$/;
+const STUB_TERMS: Partial<Record<string, ReviewTerm>> = {
+  "attribution.brinson": "brinson",
+  "screening.anomaly": "anomaly",
+};
 
 function defaultMonth(): string {
   const now = new Date();
@@ -60,9 +66,9 @@ export function Workbench() {
       <form onSubmit={handleSubmit} className="card">
         <div className="flex flex-wrap items-end gap-4">
           <div className="flex flex-col gap-1">
-            <label className="label" htmlFor="fund-code">
-              基金代码
-            </label>
+            <div className="label">
+              <TermNote term="fundCode" htmlFor="fund-code">基金代码</TermNote>
+            </div>
             <input
               id="fund-code"
               className="input w-40 font-mono"
@@ -75,9 +81,9 @@ export function Workbench() {
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="label" htmlFor="month">
-              回顾月份
-            </label>
+            <div className="label">
+              <TermNote term="reviewMonth" htmlFor="month">回顾月份</TermNote>
+            </div>
             <input
               id="month"
               type="month"
@@ -144,7 +150,9 @@ export function Workbench() {
               <div className="card md:col-span-2">
                 <div className="flex flex-wrap items-baseline gap-6">
                   <div>
-                    <div className="label">区间收益</div>
+                    <div className="label">
+                      <TermNote term="fundReturn">区间收益</TermNote>
+                    </div>
                     <div
                       className={`text-2xl font-semibold ${
                         (interval.period_return ?? 0) >= 0 ? "text-red-600" : "text-emerald-600"
@@ -154,7 +162,9 @@ export function Workbench() {
                     </div>
                   </div>
                   <div>
-                    <div className="label">最大回撤</div>
+                    <div className="label">
+                      <TermNote term="maxDrawdown">最大回撤</TermNote>
+                    </div>
                     <div className="text-2xl font-semibold text-emerald-600">
                       {formatPct(interval.max_drawdown ?? 0)}
                     </div>
@@ -178,7 +188,7 @@ export function Workbench() {
               if (!feature.resultId && result?.status === "stub") {
                 return (
                   <div key={feature.id} className={feature.span === 2 ? "md:col-span-2" : ""}>
-                    <StubCard title={feature.title} meta={meta} result={result} />
+                    <StubCard title={feature.title} meta={meta} result={result} term={STUB_TERMS[feature.id]} />
                   </div>
                 );
               }

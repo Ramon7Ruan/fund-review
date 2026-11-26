@@ -1,3 +1,4 @@
+import { TermNote } from "../../components/TermNote";
 import type { PanelProps } from "../../core/features";
 
 interface MomentumData {
@@ -17,7 +18,9 @@ export default function Panel({ result }: PanelProps) {
 
   return (
     <div className="card h-full">
-      <h3 className="text-sm font-semibold text-ink-900">涨跌天数分布</h3>
+      <h3 className="text-sm font-semibold text-ink-900">
+        <TermNote term="dailyReturns">涨跌天数分布</TermNote>
+      </h3>
       <dl className="mt-3 space-y-2 text-xs">
         <div className="flex justify-between">
           <dt className="text-ink-500">上涨 / 下跌 / 持平</dt>
@@ -26,15 +29,21 @@ export default function Panel({ result }: PanelProps) {
           </dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-ink-500">上涨天数占比</dt>
+          <dt className="text-ink-500">
+            <TermNote term="upRatio">上涨天数占比</TermNote>
+          </dt>
           <dd className="text-ink-700">{pct(data.up_ratio)}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-ink-500">最佳单日</dt>
+          <dt className="text-ink-500">
+            <TermNote term="bestDay">最佳单日</TermNote>
+          </dt>
           <dd className="text-red-600">{pct(data.best_day)}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-ink-500">最差单日</dt>
+          <dt className="text-ink-500">
+            <TermNote term="worstDay">最差单日</TermNote>
+          </dt>
           <dd className="text-emerald-600">{pct(data.worst_day)}</dd>
         </div>
       </dl>

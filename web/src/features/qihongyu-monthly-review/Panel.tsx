@@ -16,7 +16,9 @@
 
 import { useMemo } from "react";
 
+import { TermNote } from "../../components/TermNote";
 import type { PanelProps } from "../../core/features";
+import type { ReviewTerm } from "../../core/reviewTerms";
 
 import Attribution from "./Attribution";
 import Holdings from "./Holdings";
@@ -60,12 +62,14 @@ function nav(value: unknown, digits = 4): string {
 
 function Kpi({
   label,
+  term,
   value,
   hint,
   color,
   dense,
 }: {
   label: string;
+  term: ReviewTerm;
   value: string;
   hint?: string;
   color?: "up" | "down" | "base";
@@ -82,7 +86,9 @@ function Kpi({
         : "border-blue-100 bg-blue-50/40";
   return (
     <div className={`min-w-0 rounded-xl border px-3 py-2.5 ${surface}`} data-testid="review-kpi">
-      <div className="label">{label}</div>
+      <div className="label">
+        <TermNote term={term}>{label}</TermNote>
+      </div>
       <div
         className={`mt-1 font-semibold tabular-nums ${dense ? "text-sm leading-6" : "text-xl"} ${text}`}
       >
@@ -160,18 +166,21 @@ export default function Panel({
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           <Kpi
             label="起止净值"
+            term="startEndNav"
             value={`${nav(firstPoint?.nav)} → ${nav(lastPoint?.nav)}`}
             hint="单位净值（抓取值）"
             dense
           />
-          <Kpi label="交易日" value={`${navSeries.length}`} hint="有效净值点个数" />
+          <Kpi label="交易日" term="navDays" value={`${navSeries.length}`} hint="有效净值点个数" />
           <Kpi
             label="披露持仓"
+            term="disclosure"
             value={`${holdings.length} 只`}
             hint={holdingPeriod}
           />
           <Kpi
             label="披露权重合计"
+            term="weightSum"
             value={pct(weightSum)}
             hint="返回持仓占基金净资产比例之和"
           />
@@ -185,6 +194,7 @@ export default function Panel({
 
         <p className="mt-3 text-xs text-ink-500">
           回顾月份是净值和收益的观察窗口。持仓披露期、归因使用的持仓披露期和变动对比期见各模块标记。
+          收益按<TermNote term="reinvestment">分红复权</TermNote>口径由后端计算；持仓为最近一期季报披露的前十大，未披露部分在拆解里以残差列示。
         </p>
       </section>
 
@@ -199,15 +209,17 @@ export default function Panel({
               <div className="mb-1 flex flex-wrap items-center gap-3 text-xs text-ink-500">
                 <span className="inline-flex items-center gap-1">
                   <span className="h-2 w-2 rounded-sm" style={{ background: BLUE }} />
-                  单位净值
+                  <TermNote term="nav">单位净值</TermNote>
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <span className="h-2 w-2 rounded-sm" style={{ background: GREEN }} />
-                  距区间高点的回撤
+                  <TermNote term="drawdown">距区间高点的回撤</TermNote>
                 </span>
                 {maxDrawdown !== undefined && (
                   <span className="ml-auto rounded-full bg-blue-50 px-2 py-0.5 text-blue-700">
-                    {drawdownIsBackend ? "区间最大回撤（复权口径）" : "区间最大回撤（单位净值派生）"}{" "}
+                    <TermNote term="maxDrawdown">
+                      {drawdownIsBackend ? "区间最大回撤（复权口径）" : "区间最大回撤（单位净值派生）"}
+                    </TermNote>{" "}
                     {pct(maxDrawdown)}
                   </span>
                 )}
@@ -231,10 +243,16 @@ export default function Panel({
 
       <section className="card">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h4 className="text-sm font-semibold text-ink-900">交易日历</h4>
-          <PeriodBadge label="日历月份" value={month} />
+          <h4 className="text-sm font-semibold text-ink-900">
+            <TermNote term="dailyReturns">交易日历</TermNote>
+          </h4>
+          <div className="flex flex-wrap items-center gap-2">
+            <PeriodBadge label="日历月份" value={month} />
+            <span className="text-xs text-ink-500">
+              红涨绿跌 · 单位净值未复权，<TermNote term="exDividend">除息日</TermNote>会出现跳变
+            </span>
+          </div>
         </div>
-        <p className="mt-2 text-xs text-ink-500">红涨绿跌 · 单位净值未复权，除息日会出现跳变</p>
         <div className="mt-3">
           {navSeries.length > 1 ? (
             <div className="max-w-2xl">
