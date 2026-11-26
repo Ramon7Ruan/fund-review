@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>基金购买分析 · 界面预览</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="tech.css">
+  <script src="light.js" defer></script>
+  <script src="preview.js" defer></script>
+</head>
+<body data-theme="dashboard">
+  <div id="ambient-light" aria-hidden="true"></div>
+  <header class="picker">
+    <div class="picker-inner">
+      <a class="brand" href="#top"><span class="brand-mark" aria-hidden="true"></span> FUND REVIEW</a>
+      <nav class="top-nav" aria-label="主导航">
+        <button type="button" data-step="entry" data-upload>导入购买记录</button>
+        <button type="button" data-step="records">购买记录</button>
+        <button type="button" data-step="analysis">多基金购买分析</button>
+      </nav>
+    </div>
+  </header>
+  <main class="app" id="top">
+    <header class="hero">
+      <div class="hero-copy">
+        <h1>从一笔买入<br><span>看懂整个基金组合</span></h1>
+        <p>汇集不同基金的购买记录，核对每笔投入，再用基金净值和期初权重回顾组合表现。</p>
+        <div class="hero-actions">
+          <button class="primary" type="button" data-step="entry">开始录入 <span aria-hidden="true">↗</span></button>
+          <a class="secondary" href="#guide">查看使用说明</a>
+        </div>
+      </div>
+      <dl class="hero-cards" aria-label="当前购买记录概览">
+        <div class="hero-total"><dt>累计实付</dt><dd id="hero-paid">—</dd></div>
+        <div><dt>基金</dt><dd id="hero-funds">—</dd></div>
+        <div><dt>购买记录</dt><dd id="hero-count">—</dd></div>
+        <div class="hero-source"><dt>来源</dt><dd id="hero-source">—</dd></div>
+      </dl>
+    </header>
+
+    <div class="workbar" id="workspace">
+      <nav class="workflow" aria-label="购买分析流程">
+        <button type="button" data-step="entry" aria-controls="entry"><b>01</b> 录入</button>
+        <button type="button" data-step="records" aria-controls="records"><b>02</b> 核对 <span id="step-count"></span></button>
+        <button type="button" data-step="analysis" aria-controls="analysis"><b>03</b> 分析</button>
+      </nav>
+      <button id="load-demo" class="secondary" type="button">载入示例</button>
+    </div>
+
+    <div class="workspace">
+      <section class="surface entry" id="entry" aria-labelledby="entry-title">
+        <div class="section-heading">
+          <h2 id="entry-title">录入购买记录</h2>
+          <div class="input-switch" role="group" aria-label="录入方式">
+            <button type="button" data-input="manual" aria-pressed="true">逐笔填写</button>
+            <button type="button" data-input="upload" aria-pressed="false">导入 CSV</button>
+          </div>
+        </div>
+        <form id="record-form">
+          <div class="form-grid">
+            <label>基金代码 <input name="code" required inputmode="numeric" maxlength="6" pattern="[0-9]{6}" placeholder="例如 110022"></label>
+            <label>确认日期 <input name="date" required type="date"></label>
+            <label>实付金额（元） <input name="amount" required type="number" min="0.01" step="0.01" placeholder="0.00"></label>
+            <label>申购手续费（元） <input name="fee" type="number" min="0" step="0.01" placeholder="0.00"></label>
+            <label>确认份额（可选） <input name="units" type="number" min="0.0001" step="0.0001" placeholder="按交易确认单填写"></label>
+          </div>
+          <div class="row-actions">
+            <button class="primary" id="save" type="submit">添加记录</button>
+            <button class="secondary" id="cancel" type="button" hidden>取消编辑</button>
+          </div>
+        </form>
+        <div id="upload-panel" hidden>
+          <label class="upload-zone" id="drop-zone">
+            <strong>选择或拖入 CSV 文件</strong>
+            <span>支持多笔、多只基金。基金代码请保留前导零。</span>
+            <input id="file-input" type="file" accept=".csv,text/csv">
+          </label>
+          <details>
+            <summary>查看 CSV 格式</summary>
+            <pre>基金代码,确认日期,实付金额,手续费,确认份额
+110022,2026-09-08,10000,10,5000
+003095,2026-10-12,8000,8,4000</pre>
+            <p class="muted">前三列必填，手续费留空按 0 元，日期用 YYYY-MM-DD。</p>
+          </details>
+        </div>
+        <p class="notice" id="feedback" role="status" hidden></p>
+        <div class="row-actions footer-actions">
+          <button class="secondary" type="button" data-step="records">核对购买记录 →</button>
+        </div>
+      </section>
+
+      <section class="surface records" id="records" aria-labelledby="records-title" hidden>
+        <div class="section-heading">
+          <div><h2 id="records-title">购买记录</h2><p class="muted" id="record-count"></p></div>
+          <button id="analyse" class="primary" type="button">分析这组基金</button>
+        </div>
+        <p class="empty" id="record-empty">添加一笔购买记录，或载入示例开始体验。</p>
+        <div class="record-tools" id="record-tools" hidden>
+          <label>查找基金 <input id="record-search" type="search" placeholder="输入基金代码或名称"></label>
+          <label>排序
+            <select id="record-order">
+              <option value="date-desc">最近购买</option>
+              <option value="date-asc">最早购买</option>
+              <option value="amount-desc">实付从高到低</option>
+            </select>
+          </label>
+          <button class="text-button" id="clear-search" type="button" hidden>清除筛选</button>
+        </div>
+        <p id="record-matches" class="muted" aria-live="polite" hidden></p>
+        <div class="table-scroll" id="record-table" hidden>
+          <table>
+            <thead><tr><th>确认日期</th><th>基金</th><th>实付金额</th><th>手续费</th><th>确认份额</th><th>操作</th></tr></thead>
+            <tbody id="record-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="surface analysis" id="analysis" aria-labelledby="analysis-title" hidden>
+        <div class="section-heading">
+          <div><h2 id="analysis-title">多基金购买分析</h2><p class="muted" id="analysis-context">核对记录后生成组合概览。</p></div>
+          <label class="filter" id="filter-label" hidden>查看范围 <select id="fund-filter"></select></label>
+        </div>
+        <div class="empty" id="analysis-empty">这里会显示累计实付、购买结构、逐只基金汇总与估值状态。</div>
+        <div id="analysis-result" hidden>
+          <div class="metrics" id="metrics"></div>
+          <div class="result-grid">
+            <div>
+              <div class="allocation-heading">
+                <h3>实付金额分布</h3>
+                <button class="text-button" id="show-all-funds" type="button" hidden>查看全部</button>
+              </div>
+              <p class="muted">点击基金查看明细。</p>
+              <div id="allocation" class="allocation"></div>
+            </div>
+            <div>
+              <h3>逐只基金</h3>
+              <div class="table-scroll">
+                <table>
+                  <thead><tr><th>基金</th><th>笔数</th><th>累计实付</th><th>确认份额</th><th id="valuation-head">示例市值</th><th id="profit-head">示例持有盈亏</th></tr></thead>
+                  <tbody id="analysis-body"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <p class="muted" id="analysis-foot"></p>
+          <section class="market-panel" aria-labelledby="market-title">
+            <h3 id="market-title">基金月度回顾</h3>
+            <div class="market-controls">
+              <label>回顾月份 <input id="review-month" type="month" value="2026-10" required></label>
+              <button class="secondary" id="market-review" type="button">查看选中基金的月度回顾</button>
+            </div>
+            <div id="single-review" class="market-result" aria-live="polite"></div>
+            <details id="weight-panel">
+              <summary>按期初权重计算组合收益</summary>
+              <p class="muted">填写回顾月期初的持仓权重，剩余比例按现金处理。组合结果按期初权重估算，未纳入月内买卖现金流。</p>
+              <div class="form-grid" id="weight-fields"></div>
+              <p class="weight-status" id="weight-status" aria-live="polite"></p>
+              <div class="row-actions">
+                <button class="primary" id="portfolio-review" type="button">计算组合收益</button>
+                <button class="secondary" id="sample-weights" type="button" hidden>填入示例权重</button>
+              </div>
+              <div id="portfolio-result" class="market-result" aria-live="polite"></div>
+            </details>
+          </section>
+        </div>
+      </section>
+    </div>
+    <details class="surface guide" id="guide">
+      <summary>使用说明</summary>
+      <ol>
+        <li>录入基金代码、确认日期和实付金额。实付金额包含申购手续费，确认份额可以稍后补录。</li>
+        <li>检查日期、金额和份额。分析页可以在全部基金与单只基金间切换。</li>
+        <li>查看单基金月度回顾，或输入期初权重计算组合收益。按实际交易现金流计算个人盈亏需另行接入。</li>
+      </ol>
+    </details>
+    <footer>购买记录保留在当前页面。查询回顾时仅向本机项目接口发送基金代码、月份及计算所需权重。</footer>
+  </main>
+  <nav class="page-turn" aria-label="上下翻页">
+    <button id="page-prev" type="button" aria-label="上一页" title="上一页" disabled>↑</button>
+    <span id="page-number" aria-live="polite">01 / 05</span>
+    <button id="page-next" type="button" aria-label="下一页" title="下一页">↓</button>
+  </nav>
+</body>
+</html>
