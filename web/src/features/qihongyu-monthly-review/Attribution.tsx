@@ -9,6 +9,7 @@ import * as echarts from "echarts";
 import type { EChartsOption } from "echarts";
 import { useEffect, useMemo, useRef } from "react";
 
+import { TermNote } from "../../components/TermNote";
 import type { PanelProps } from "../../core/features";
 import { disclosurePeriod, netValuePeriod, PeriodBadge } from "./PeriodBadge";
 
@@ -562,7 +563,9 @@ function compositionOption(
 function EmptyState({ title, hint }: { title: string; hint: string }) {
   return (
     <div className="card h-full border-dashed">
-      <h3 className="text-sm font-semibold text-ink-900">收益拆解</h3>
+      <h3 className="text-sm font-semibold text-ink-900">
+        <TermNote term="attribution">收益拆解</TermNote>
+      </h3>
       <p className="mt-3 text-sm text-ink-700">{title}</p>
       <p className="mt-1 text-xs text-ink-500">{hint}</p>
     </div>
@@ -649,9 +652,11 @@ export default function Panel({
   return (
     <div className="card h-full">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold text-ink-900">收益拆解</h3>
+        <h3 className="text-sm font-semibold text-ink-900">
+          <TermNote term="attribution">收益拆解</TermNote>
+        </h3>
         <span className="text-xs text-ink-500">
-          {data.month || month} · 覆盖披露权重 {pct(data.coverage)}
+          {data.month || month} · <TermNote term="attributionCoverage">覆盖披露权重</TermNote> {pct(data.coverage)}
         </span>
       </div>
 
@@ -665,21 +670,29 @@ export default function Panel({
       </div>
       <dl className="mt-3 grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
         <div>
-          <dt className="label">基金区间收益</dt>
+          <dt className="label">
+            <TermNote term="fundReturn">基金区间收益</TermNote>
+          </dt>
           <dd className={`mt-1 text-base font-semibold ${fundReturn >= 0 ? "text-red-600" : "text-emerald-600"}`}>
             {pct(fundReturn)}
           </dd>
         </div>
         <div>
-          <dt className="label">分项合计</dt>
+          <dt className="label">
+            <TermNote term="sumContributions">分项合计</TermNote>
+          </dt>
           <dd className="mt-1 text-base font-semibold text-ink-900">{pct(totalContribution)}</dd>
         </div>
         <div>
-          <dt className="label">残差</dt>
+          <dt className="label">
+            <TermNote term="residual">残差</TermNote>
+          </dt>
           <dd className="mt-1 text-base font-semibold text-ink-700">{pct(residual)}</dd>
         </div>
         <div>
-          <dt className="label">对账</dt>
+          <dt className="label">
+            <TermNote term="reconcile">对账</TermNote>
+          </dt>
           <dd className="mt-1">
             <span
               className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
@@ -696,19 +709,21 @@ export default function Panel({
 
       <div className="mt-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="text-xs font-medium text-ink-700">贡献度瀑布</div>
+          <div className="text-xs font-medium text-ink-700">
+            <TermNote term="contributionWaterfall">贡献度瀑布</TermNote>
+          </div>
           <div className="flex items-center gap-3 text-xs text-ink-500">
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-sm bg-red-600" />
-              正贡献
+              <TermNote term="positiveContribution">正贡献</TermNote>
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-sm bg-emerald-600" />
-              负贡献
+              <TermNote term="negativeContribution">负贡献</TermNote>
             </span>
             <span className="inline-flex items-center gap-1">
               <span className="h-2 w-2 rounded-sm bg-blue-600" />
-              基金收益
+              <TermNote term="fundReturn">基金收益</TermNote>
             </span>
           </div>
         </div>
@@ -720,7 +735,9 @@ export default function Panel({
 
       <div className="mt-4">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <div className="text-xs font-medium text-ink-700">持仓贡献象限</div>
+          <div className="text-xs font-medium text-ink-700">
+            <TermNote term="contributionQuadrant">持仓贡献象限</TermNote>
+          </div>
           <span className="text-xs text-ink-500">气泡越大，贡献越显著</span>
         </div>
         <Chart option={scatterChart} className="mt-1 h-72 w-full" testId="contribution-scatter" />
@@ -734,7 +751,9 @@ export default function Panel({
         <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-5">
           <div className="min-w-0 lg:col-span-3">
             <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <div className="text-xs font-medium text-ink-700">行业权重 × 贡献对照</div>
+              <div className="text-xs font-medium text-ink-700">
+                <TermNote term="industryContribution">行业权重 × 贡献对照</TermNote>
+              </div>
               <span className="text-xs text-ink-500">左：钱压在哪　右：赚亏来自哪</span>
             </div>
             <Chart
@@ -745,7 +764,9 @@ export default function Panel({
             />
           </div>
           <div className="min-w-0 lg:col-span-2">
-            <div className="text-xs font-medium text-ink-700">收益构成</div>
+            <div className="text-xs font-medium text-ink-700">
+              <TermNote term="composition">收益构成</TermNote>
+            </div>
             <Chart
               option={compositionChart}
               className="mt-1 w-full min-w-0"
@@ -757,10 +778,12 @@ export default function Panel({
       ) : (
         <div className="mt-4">
           <p className="rounded-lg border border-dashed border-ink-300 px-3 py-2 text-xs text-ink-500">
-            本期没有可用的行业指数收益，行业对照缺失，仅展示持仓层贡献与收益构成。
+            本期没有可用的<TermNote term="industryIndex">行业指数收益</TermNote>，行业对照缺失，仅展示持仓层贡献与收益构成。
           </p>
           <div className="mt-3">
-            <div className="text-xs font-medium text-ink-700">收益构成</div>
+            <div className="text-xs font-medium text-ink-700">
+              <TermNote term="composition">收益构成</TermNote>
+            </div>
             <Chart option={compositionChart} className="mt-1 w-full" height={220} testId="composition-chart" />
           </div>
         </div>
@@ -775,10 +798,18 @@ export default function Panel({
             <thead className="text-ink-500">
               <tr className="border-b border-ink-100">
                 <th className="py-1 pr-3 font-medium">股票</th>
-                <th className="py-1 pr-3 font-medium">行业</th>
-                <th className="py-1 pr-3 text-right font-medium">披露权重</th>
-                <th className="py-1 pr-3 text-right font-medium">区间收益</th>
-                <th className="py-1 text-right font-medium">贡献</th>
+                <th className="py-1 pr-3 font-medium">
+                  <TermNote term="industry">行业</TermNote>
+                </th>
+                <th className="py-1 pr-3 text-right font-medium">
+                  <TermNote term="weight">披露权重</TermNote>
+                </th>
+                <th className="py-1 pr-3 text-right font-medium">
+                  <TermNote term="stockReturn">区间收益</TermNote>
+                </th>
+                <th className="py-1 text-right font-medium">
+                  <TermNote term="contribution">贡献</TermNote>
+                </th>
               </tr>
             </thead>
             <tbody className="text-ink-700">

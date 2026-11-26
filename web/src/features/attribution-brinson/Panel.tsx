@@ -1,3 +1,4 @@
+import { TermNote } from "../../components/TermNote";
 import type { PanelProps } from "../../core/features";
 
 /**
@@ -7,7 +8,9 @@ import type { PanelProps } from "../../core/features";
 export default function Panel({ result }: PanelProps) {
   return (
     <div className="card border-dashed">
-      <h3 className="text-sm font-semibold text-ink-900">Brinson 归因</h3>
+      <h3 className="text-sm font-semibold text-ink-900">
+        <TermNote term="brinson">Brinson 归因</TermNote>
+      </h3>
       <p className="mt-2 text-xs text-ink-500">
         {result?.notes?.[0] ?? "该算法尚未接入"}
       </p>

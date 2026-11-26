@@ -1,3 +1,4 @@
+import { TermNote } from "../../components/TermNote";
 import type { PanelProps } from "../../core/features";
 
 export default function Panel({ fund, holdings, month, meta }: PanelProps) {
@@ -12,19 +13,27 @@ export default function Panel({ fund, holdings, month, meta }: PanelProps) {
       </div>
       <dl className="mt-3 space-y-2 text-xs">
         <div className="flex justify-between">
-          <dt className="text-ink-500">类型</dt>
+          <dt className="text-ink-500">
+            <TermNote term="fundType">类型</TermNote>
+          </dt>
           <dd className="text-ink-700">{fund.type || "—"}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-ink-500">回顾月份</dt>
+          <dt className="text-ink-500">
+            <TermNote term="reviewMonth">回顾月份</TermNote>
+          </dt>
           <dd className="text-ink-700">{month}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-ink-500">持仓披露</dt>
+          <dt className="text-ink-500">
+            <TermNote term="disclosure">持仓披露</TermNote>
+          </dt>
           <dd className="text-ink-700">{String(holdingsMeta.quarter ?? "—")}</dd>
         </div>
         <div className="flex justify-between">
-          <dt className="text-ink-500">持仓数量</dt>
+          <dt className="text-ink-500">
+            <TermNote term="holdingCount">持仓数量</TermNote>
+          </dt>
           <dd className="text-ink-700">{holdings.length}</dd>
         </div>
         <div className="flex justify-between">
