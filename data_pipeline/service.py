@@ -11,6 +11,7 @@ import io
 import json
 from calendar import monthrange
 from datetime import date
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -27,13 +28,14 @@ HOLDINGS_TTL_SECONDS = 7 * 24 * 3600
 # 分红变动极少，缓存一周；sync_nav 主动同步时不走缓存
 DIVIDEND_TTL_SECONDS = 7 * 24 * 3600
 # 行业映射抓取失败后的退避窗口：期间不再重试 31 个行业
-INDUSTRY_FAIL_KEY = "industry:map:failed"
+INDUSTRY_FAIL_KEY = "industry:map:failed:v2"
 INDUSTRY_FAIL_TTL_SECONDS = 60
 # 快照是降级数据，只缓存 10 分钟，接口恢复后尽快重试实时映射
 INDUSTRY_SNAPSHOT_TTL_SECONDS = 600
 INDUSTRY_SNAPSHOT_PATH = (
     Path(__file__).resolve().parents[1] / "data" / "snapshots" / "sw_industry_map.json"
 )
+INDUSTRY_BARS_SNAPSHOT_PATH = INDUSTRY_SNAPSHOT_PATH.with_name("sw_industry_bars.json")
 
 
 def _month_bounds(month: str) -> tuple[str, str]:
@@ -43,13 +45,37 @@ def _month_bounds(month: str) -> tuple[str, str]:
     return start.isoformat(), end.isoformat()
 
 
+def _read_snapshot(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _snapshot_bars(index: dict, month: str) -> list[dict[str, Any]]:
+    by_date: dict[str, float] = {}
+    points = index.get("bars")
+    if not isinstance(points, list):
+        return []
+    for point in points:
+        if not isinstance(point, dict):
+            continue
+        day, close = point.get("date"), point.get("close")
+        if (
+            isinstance(day, str)
+            and day.startswith(f"{month}-")
+            and isinstance(close, (int, float))
+            and isfinite(close)
+            and close > 0
+        ):
+            by_date[day] = close
+    return [{"date": day, "close": by_date[day]} for day in sorted(by_date)]
+
+
 def load_industry_snapshot(path: Path | None = None) -> dict[str, Any] | None:
     """读取本地行业映射快照；文件缺失或格式不对时返回 None，不抛错。"""
-    target = path or INDUSTRY_SNAPSHOT_PATH
-    try:
-        payload = json.loads(target.read_text(encoding="utf-8"))
-    except (OSError, ValueError):
-        return None
+    payload = _read_snapshot(path or INDUSTRY_SNAPSHOT_PATH)
     mapping = payload.get("map")
     if not isinstance(mapping, dict) or not mapping:
         return None
@@ -380,7 +406,7 @@ class DataService:
             source = "akshare.sw"
             as_of = ""
             try:
-                for item in akshare_source.fetch_sw_industries():
+                for item in self._sw_industries():
                     try:
                         members = akshare_source.fetch_sw_constituents(item["sw_code"])
                     except SourceUnavailable as exc:
@@ -409,30 +435,72 @@ class DataService:
 
         wanted = {str(c).zfill(6) for c in codes}
         subset = {c: mapping[c] for c in sorted(wanted) if c in mapping}
+        snapshot_codes: list[str] = []
+        if wanted - subset.keys() and source == "akshare.sw":
+            snapshot = load_industry_snapshot()
+            if snapshot:
+                for code in sorted(wanted - subset.keys()):
+                    if code in snapshot["map"]:
+                        subset[code] = snapshot["map"][code]
+                        snapshot_codes.append(code)
+                if snapshot_codes:
+                    source = f"mixed:akshare.sw+snapshot:{snapshot['source']}"
+                    as_of = snapshot["as_of"]
+                    attempts.append(f"实时映射有缺口，使用快照补足 {len(snapshot_codes)} 只")
         meta = {
             "source": source,
             "as_of": as_of,
             "requested": len(wanted),
             "mapped": len(subset),
             "unmapped": sorted(wanted - set(subset)),
+            "snapshot_codes": snapshot_codes
+            if not source.startswith("snapshot:")
+            else sorted(subset),
             "attempts": attempts,
         }
         return subset, meta
 
-    def get_industry_returns(
-        self, month: str, industries: list[str] | tuple[str, ...] | None = None
-    ) -> tuple[dict[str, float], dict[str, Any]]:
-        """申万一级行业指数区间收益 {industry: r}，用首末收盘比值。"""
+    def _sw_industries(self) -> list[dict[str, Any]]:
         listing_key = "industry:list:v1"
         listing = self.cache.get(listing_key)
         if listing is None:
             listing = akshare_source.fetch_sw_industries()
             self.cache.set(listing_key, listing, ttl_seconds=HOLDINGS_TTL_SECONDS)
-        code_by_name = {item["industry"]: item["sw_code"] for item in listing}
+        return listing
 
-        targets = list(industries) if industries is not None else sorted(code_by_name)
+    def get_industry_returns(
+        self, month: str, industries: list[str] | tuple[str, ...] | None = None
+    ) -> tuple[dict[str, float], dict[str, Any]]:
+        """按月首末收盘计算收益，实时日线不可用时用同月快照。"""
         result: dict[str, float] = {}
         missing: list[str] = []
+        attempts: list[str] = []
+        sources: dict[str, str] = {}
+        if industries is not None and not industries:
+            return {}, {"source": "unavailable", "count": 0, "missing": [], "adjust": "none"}
+        year, number = map(int, month.split("-"))
+        start, end = f"{month}-01", f"{month}-{monthrange(year, number)[1]:02d}"
+        snapshot = _read_snapshot(INDUSTRY_BARS_SNAPSHOT_PATH)
+        snapshot_indices = snapshot.get("indices")
+        indices = snapshot_indices if isinstance(snapshot_indices, dict) else {}
+        code_by_name = {
+            name: item["sw_code"]
+            for name, item in indices.items()
+            if isinstance(item, dict) and isinstance(item.get("sw_code"), str)
+        }
+        try:
+            code_by_name.update(
+                {item["industry"]: item["sw_code"] for item in self._sw_industries()}
+            )
+        except SourceUnavailable as exc:
+            attempts.append(f"行业列表使用快照备份：{exc}" if code_by_name else str(exc))
+            if not code_by_name and industries is None:
+                raise
+        targets = list(industries) if industries is not None else sorted(code_by_name)
+        snapshot_source = f"snapshot:{snapshot.get('source', 'akshare.sw')}"
+        snapshot_window = str(snapshot.get("window_start", "")) <= start and end <= str(
+            snapshot.get("window_end", "")
+        )
         for name in targets:
             sw_code = code_by_name.get(name)
             if not sw_code:
@@ -442,23 +510,42 @@ class DataService:
             cached = self.cache.get(key)
             if cached is not None:
                 result[name] = cached
+                sources[name] = "akshare.sw"
                 continue
             try:
-                bars = akshare_source.fetch_sw_index_bars(sw_code, f"{month}-01", f"{month}-31")
+                bars = akshare_source.fetch_sw_index_bars(sw_code, start, end)
+                if len(bars) < 2:
+                    raise SourceUnavailable("有效点不足两点")
+                sources[name] = "akshare.sw"
             except SourceUnavailable as exc:
-                missing.append(f"{name}：{exc}")
-                continue
-            if len(bars) < 2:
-                missing.append(f"{name}：有效点不足两点")
-                continue
+                entry = indices.get(name)
+                bars = (
+                    _snapshot_bars(entry, month)
+                    if snapshot_window
+                    and isinstance(entry, dict)
+                    and entry.get("sw_code") == sw_code
+                    else []
+                )
+                if len(bars) < 2:
+                    missing.append(f"{name}：{exc}；没有同月备份")
+                    continue
+                attempts.append(f"{name} 使用快照：{exc}")
+                sources[name] = snapshot_source
             value = round(bars[-1]["close"] / bars[0]["close"] - 1.0, 8)
             result[name] = value
-            self.cache.set(key, value, ttl_seconds=NAV_TTL_SECONDS)
+            if sources[name] == "akshare.sw":
+                self.cache.set(key, value, ttl_seconds=NAV_TTL_SECONDS)
 
+        unique_sources = set(sources.values())
         return result, {
-            "source": "akshare.sw",
+            "source": next(iter(unique_sources))
+            if len(unique_sources) == 1
+            else ("mixed" if unique_sources else "unavailable"),
+            "sources": sources,
+            "as_of": snapshot.get("as_of") if snapshot_source in unique_sources else None,
             "count": len(result),
             "missing": missing,
+            "attempts": attempts,
             "adjust": "none",
         }
 

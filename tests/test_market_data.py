@@ -214,7 +214,10 @@ def test_industry_returns_ratio(service, monkeypatch):
     assert meta["missing"] == []
 
 
-def test_industry_returns_missing(service, monkeypatch):
+def test_industry_returns_missing(service, monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "data_pipeline.service.INDUSTRY_BARS_SNAPSHOT_PATH", tmp_path / "absent.json"
+    )
     monkeypatch.setattr(akshare_source, "fetch_sw_industries", lambda: [])
 
     def boom(sw, start, end):

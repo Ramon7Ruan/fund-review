@@ -109,3 +109,65 @@ def test_legacy_cache_key_does_not_break_upgrade(service, monkeypatch, tmp_path)
 
     assert mapping == {"600519": "食品饮料"}
     assert meta["source"] == "akshare.sw"
+
+
+def test_installed_akshare_adapter_uses_current_function(monkeypatch):
+    from types import SimpleNamespace
+
+    frame = SimpleNamespace(
+        empty=False, iterrows=lambda: iter([(0, {"行业名称": "食品饮料", "行业代码": "801120.SI"})])
+    )
+    monkeypatch.setattr(
+        akshare_source, "_akshare", lambda: SimpleNamespace(index_first_info_sw=lambda: frame)
+    )
+    assert akshare_source.fetch_sw_industries() == [{"industry": "食品饮料", "sw_code": "801120"}]
+
+
+def test_bundled_snapshots_work_when_all_sw_calls_fail(service, monkeypatch):
+    monkeypatch.setattr(akshare_source, "fetch_sw_industries", _offline)
+    monkeypatch.setattr(akshare_source, "fetch_sw_index_bars", lambda *_: _offline())
+    mapping, map_meta = service.get_industry_map(["600519", "000333"])
+    snapshot = json.loads(service_module.INDUSTRY_BARS_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    month = snapshot["window_end"][:7]
+    industry_returns, meta = service.get_industry_returns(month, sorted(set(mapping.values())))
+
+    assert mapping == {"600519": "食品饮料", "000333": "家用电器"}
+    assert map_meta["source"].startswith("snapshot:")
+    assert set(industry_returns) == set(mapping.values())
+    assert meta["source"].startswith("snapshot:")
+    assert meta["as_of"] and not meta["missing"]
+    assert meta["sources"]["食品饮料"] == meta["source"]
+
+    old_returns, old_meta = service.get_industry_returns("2020-10", ["食品饮料"])
+    assert old_returns == {}
+    assert "没有同月备份" in old_meta["missing"][0]
+
+
+def test_live_values_take_priority_over_snapshots(service, monkeypatch):
+    monkeypatch.setattr(
+        akshare_source,
+        "fetch_sw_industries",
+        lambda: [{"industry": "食品饮料", "sw_code": "801120"}],
+    )
+    monkeypatch.setattr(akshare_source, "fetch_sw_constituents", lambda _: [{"code": "600519"}])
+    mapping, meta = service.get_industry_map(["600519", "000333"])
+    assert mapping == {"600519": "食品饮料", "000333": "家用电器"}
+    assert meta["snapshot_codes"] == ["000333"]
+
+    snapshot = json.loads(service_module.INDUSTRY_BARS_SNAPSHOT_PATH.read_text(encoding="utf-8"))
+    end = snapshot["window_end"]
+    month = end[:7]
+
+    def fetch_bars(code, first, last):
+        assert (first, last) == (f"{month}-01", end)
+        if code != "801120":
+            raise SourceUnavailable("live bars unavailable")
+        return [{"date": first, "close": 100}, {"date": last, "close": 125}]
+
+    monkeypatch.setattr(akshare_source, "fetch_sw_index_bars", fetch_bars)
+    values, meta = service.get_industry_returns(month, ["食品饮料", "家用电器"])
+    assert values["食品饮料"] == 0.25
+    assert set(values) == {"食品饮料", "家用电器"}
+    assert meta["source"] == "mixed"
+    assert meta["sources"]["食品饮料"] == "akshare.sw"
+    assert meta["sources"]["家用电器"].startswith("snapshot:")
